@@ -1,0 +1,10 @@
+services:
+  test-mysql:
+    image: mysql:8.0
+    volumes:
+      - ./docker/create-databases.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_DATABASE=laravel
+    ports:
+      - 13306:3306

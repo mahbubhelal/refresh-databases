@@ -4,113 +4,58 @@ declare(strict_types=1);
 
 namespace Tcb\FastRefreshDatabases;
 
-use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Foundation\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
-use Illuminate\Foundation\Testing\Traits\CanConfigureMigrationCommands;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 trait RefreshDatabases
 {
-    use CanConfigureMigrationCommands, RefreshDatabase;
+    use RefreshDatabase;
 
-    /**
-     * Define hooks to migrate the database before and after each test.
-     *
-     * @return void
-     */
-    public function setupRefreshDatabases()
+    protected function beforeRefreshingDatabase()
     {
-        $this->refreshTestDatabase();
+        $this->beforeRefreshingDatabases();
+
+        $this->setConnectionsToTransact();
     }
 
-    /**
-     * Begin a database transaction on the testing database.
-     *
-     * @return void
-     */
-    public function beginDatabaseTransactions()
+    protected function beforeRefreshingDatabases() {}
+
+    protected function setConnectionsToTransact()
     {
-        $database = $this->app->make('db');
-
-        foreach ($this->connectionsToTransact() as $name) {
-            $connection = $database->connection($name);
-            $dispatcher = $connection->getEventDispatcher();
-
-            $connection->unsetEventDispatcher();
-            $connection->beginTransaction();
-            $connection->setEventDispatcher($dispatcher);
-
-            if ($this->app->resolved('db.transactions')) {
-                $this->app->make('db.transactions')->callbacksShouldIgnore(
-                    $this->app->make('db.transactions')->getTransactions()->first()
-                );
-            }
+        if (property_exists($this, 'connectionsToTransact')) {
+            return;
         }
 
-        $this->beforeApplicationDestroyed(function () use ($database) {
-            foreach ($this->connectionsToTransact() as $name) {
-                $connection = $database->connection($name);
-                $dispatcher = $connection->getEventDispatcher();
+        $migrationPath = database_path('migrations');
+        $connections = config('database.default') ? [$migrationPath => config('database.default')] : [];
 
-                $connection->unsetEventDispatcher();
-                $connection->rollBack();
-                $connection->setEventDispatcher($dispatcher);
-                $connection->disconnect();
-            }
-        });
+        if (File::exists($migrationPath)) {
+            $connections = array_merge(
+                $connections,
+                collect(File::directories($migrationPath))
+                    ->mapWithKeys(fn ($path) => [$path => basename((string) $path)])
+                    ->filter(fn ($connection, $path): bool => is_array(config("database.connections.{$connection}")))
+                    ->toArray()
+            );
+        }
+
+        $this->connectionsToTransact = $connections;
     }
 
-    /**
-     * Refresh a conventional test database.
-     *
-     * @return void
-     */
     protected function refreshTestDatabase()
     {
         if (!RefreshDatabaseState::$migrated) {
-            foreach ($this->connectionsToTransact() as $connection) {
-                $path = 'database/migrations/';
-
-                $defaultConnection = config('database.default');
-
-                $path .= $connection === $defaultConnection ? '' : $connection;
-
-                $this->artisan('migrate:fresh', [
-                    '--database' => $connection,
-                    '--path' => $path,
-                ]);
-
-                if (str($connection)->contains('sqlsrv')) {
-                    DB::connection($connection)
-                        ->statement(
-                            file_get_contents(
-                                database_path('schema/' . $connection . '-schema.sql')
-                            )
-                        );
-
-                    if (file_exists(database_path('schema/' . $connection . '-view.sql'))) {
-                        $contents = file_get_contents(database_path('schema/' . $connection . '-view.sql'));
-
-                        $contents = explode('--', $contents);
-
-                        foreach ($contents as $content) {
-                            DB::connection($connection)
-                                ->statement(trim($content));
-                        }
-                    }
-                }
-
-                if (file_exists(database_path('schema/' . $connection . '-seed.sql'))) {
-                    $contents = file_get_contents(database_path('schema/' . $connection . '-seed.sql'));
-
-                    $contents = explode('--', $contents);
-
-                    foreach ($contents as $content) {
-                        DB::connection($connection)
-                            ->statement(trim($content));
-                    }
-                }
+            foreach ($this->connectionsToTransact() as $path => $connection) {
+                $this->artisan('migrate:fresh', array_merge(
+                    [
+                        '--database' => $connection,
+                        '--path' => $path,
+                        '--realpath' => true,
+                    ],
+                    $this->migrateFreshUsing()
+                ));
             }
 
             $this->app[Kernel::class]->setArtisan(null);
@@ -118,16 +63,6 @@ trait RefreshDatabases
             RefreshDatabaseState::$migrated = true;
         }
 
-        $this->beginDatabaseTransactions();
-    }
-
-    /**
-     * The database connections that should have transactions.
-     *
-     * @return array
-     */
-    protected function connectionsToTransact()
-    {
-        return explode(',', env('DB_CONNECTIONS'));
+        $this->beginDatabaseTransaction();
     }
 }

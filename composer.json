@@ -19,11 +19,13 @@
         "laravel/pint": "^1.18",
         "larastan/larastan": "^2.9",
         "rector/rector": "^1.2",
-        "driftingly/rector-laravel": "^1.2"
+        "driftingly/rector-laravel": "^1.2",
+        "phpstan/phpstan-strict-rules": "^1.6"
     },
     "autoload": {
         "psr-4": {
-            "Tcb\\FastRefreshDatabases\\": "src"
+            "Tcb\\FastRefreshDatabases\\": "src",
+            "Database\\Factories\\Tcb\\FastRefreshDatabases\\": "database/factories"
         }
     },
     "autoload-dev": {
@@ -61,8 +63,10 @@
             "@php vendor/bin/phpstan analyse --verbose --ansi"
         ],
         "test": [
-            "@clear",
-            "@php vendor/bin/pest"
+            "./vendor/bin/pint --test",
+            "./vendor/bin/pest --coverage --min=100",
+            "./vendor/bin/phpstan",
+            "./vendor/bin/rector process --dry-run"
         ]
     }
 }

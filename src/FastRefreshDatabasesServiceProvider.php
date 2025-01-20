@@ -9,12 +9,10 @@ use Tcb\FastRefreshDatabases\Command\RemoveChecksum;
 
 class FastRefreshDatabasesServiceProvider extends ServiceProvider
 {
-    public function register()
-    {
+    #[\Override]
+    public function register() {}
 
-    }
-
-    public function boot()
+    public function boot(): void
     {
         if ($this->app->runningInConsole()) {
             $this->commands([

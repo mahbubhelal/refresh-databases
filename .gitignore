@@ -1,5 +1,1 @@
 /vendor
-/laravel/bootstrap/cache
-/laravel/vendor
-/laravel/.env
-/laravel/storage

@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\File;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Tcb\FastRefreshDatabases\Tests\Fixtures\Models\DefaultOne;
 use Tcb\FastRefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
+
+beforeAll(function () {
+    RefreshDatabaseState::$migrated = false;
+});
 
 test('can refresh default connection', function () {
     DefaultOne::factory()->create();
@@ -27,16 +31,11 @@ test('can refresh multiple database connections', function () {
 });
 
 test('it can infer connectionsToTransact from migration directories', function () {
-    $file = File::partialMock();
-
-    $file->shouldReceive('exists')->once()->with(database_path('migrations'))->andReturn(true);
-    $file->shouldReceive('directories')->once()->with(database_path('migrations'))->andReturn([database_path('migrations/other')]);
-
     $class = new class
     {
         use Tcb\FastRefreshDatabases\RefreshDatabases;
 
-        public function beforeRefreshingDatabases()
+        public function runIt()
         {
             $this->setConnectionsToTransact();
         }
@@ -47,7 +46,7 @@ test('it can infer connectionsToTransact from migration directories', function (
         }
     };
 
-    $class->beforeRefreshingDatabases();
+    $class->runIt();
 
     expect($class->getConnectionsToTransact())
         ->toBe([
@@ -57,16 +56,11 @@ test('it can infer connectionsToTransact from migration directories', function (
 });
 
 test('it discards inferred connections if they are not configured', function () {
-    $file = File::partialMock();
-
-    $file->shouldReceive('exists')->once()->with(database_path('migrations'))->andReturn(true);
-    $file->shouldReceive('directories')->once()->with(database_path('migrations'))->andReturn([database_path('migrations/another')]);
-
     $class = new class
     {
         use Tcb\FastRefreshDatabases\RefreshDatabases;
 
-        public function beforeRefreshingDatabases()
+        public function runIt()
         {
             $this->setConnectionsToTransact();
         }
@@ -77,7 +71,9 @@ test('it discards inferred connections if they are not configured', function () 
         }
     };
 
-    $class->beforeRefreshingDatabases();
+    config(['database.connections.other' => null]);
+
+    $class->runIt();
 
     expect($class->getConnectionsToTransact())
         ->toBe([

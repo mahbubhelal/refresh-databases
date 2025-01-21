@@ -6,8 +6,8 @@ namespace Tcb\FastRefreshDatabases\Command;
 
 use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Database\ConnectionInterface;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
+use Symfony\Component\Finder\Finder;
 
 class RemoveChecksum extends Command
 {
@@ -15,14 +15,23 @@ class RemoveChecksum extends Command
 
     protected $description = 'Remove the checksum file from the storage folder';
 
-    public function handle()
+    public function handle(): void
     {
-        $connection = app(ConnectionInterface::class);
-
-        $databaseNameSlug = Str::slug($connection->getDatabaseName());
-
         try {
-            unlink(storage_path("app/migration-checksum_{$databaseNameSlug}.txt"));
+            $files = array_keys(iterator_to_array(
+                Finder::create()
+                    ->in(storage_path('app'))
+                    ->name('migration-checksum_*.txt')
+                    ->ignoreDotFiles(true)
+                    ->ignoreVCS(true)
+                    ->files()
+            ));
+
+            if ($files === []) {
+                throw new Exception;
+            }
+
+            File::delete($files);
 
             $this->info('Checksum file has been removed from the storage folder');
         } catch (Exception) {

@@ -15,12 +15,12 @@ trait RefreshDatabases
 
     protected function beforeRefreshingDatabase()
     {
-        $this->beforeRefreshingDatabases();
+        $this->runIt();
 
         $this->setConnectionsToTransact();
     }
 
-    protected function beforeRefreshingDatabases() {}
+    protected function runIt() {}
 
     protected function setConnectionsToTransact()
     {
@@ -47,22 +47,27 @@ trait RefreshDatabases
     protected function refreshTestDatabase()
     {
         if (!RefreshDatabaseState::$migrated) {
-            foreach ($this->connectionsToTransact() as $path => $connection) {
-                $this->artisan('migrate:fresh', array_merge(
-                    [
-                        '--database' => $connection,
-                        '--path' => $path,
-                        '--realpath' => true,
-                    ],
-                    $this->migrateFreshUsing()
-                ));
-            }
-
-            $this->app[Kernel::class]->setArtisan(null);
+            $this->migrateConnections();
 
             RefreshDatabaseState::$migrated = true;
         }
 
         $this->beginDatabaseTransaction();
+    }
+
+    protected function migrateConnections()
+    {
+        foreach ($this->connectionsToTransact() as $path => $connection) {
+            $this->artisan('migrate:fresh', array_merge(
+                [
+                    '--database' => $connection,
+                    '--path' => $path,
+                    '--realpath' => true,
+                ],
+                $this->migrateFreshUsing()
+            ));
+        }
+
+        $this->app[Kernel::class]->setArtisan(null);
     }
 }

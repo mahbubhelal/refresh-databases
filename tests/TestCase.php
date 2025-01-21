@@ -10,8 +10,8 @@ use Tcb\FastRefreshDatabases\FastRefreshDatabasesServiceProvider;
 abstract class TestCase extends TestbenchTestCase
 {
     protected $connectionsToTransact = [
-        __DIR__ . '/Fixtures/migrations' => 'default',
-        __DIR__ . '/Fixtures/migrations/other' => 'other',
+        __DIR__ . '/Fixtures/database/migrations' => 'default',
+        __DIR__ . '/Fixtures/database/migrations/other' => 'other',
     ];
 
     #[\Override]
@@ -45,5 +45,8 @@ abstract class TestCase extends TestbenchTestCase
         $app['config']->set('database.default', 'default');
         $app['config']->set('database.connections.default', $baseOptions);
         $app['config']->set('database.connections.other', array_merge($baseOptions, ['database' => 'other']));
+
+        $app->useDatabasePath(__DIR__ . '/Fixtures/database');
+        $app->useStoragePath(__DIR__ . '/Fixtures/storage');
     }
 }

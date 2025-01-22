@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tcb\FastRefreshDatabases;
+namespace Mahbub\FastRefreshDatabases;
 
 use Illuminate\Support\ServiceProvider;
-use Tcb\FastRefreshDatabases\Command\RemoveChecksum;
+use Mahbub\FastRefreshDatabases\Command\RemoveChecksum;
 
 class FastRefreshDatabasesServiceProvider extends ServiceProvider
 {

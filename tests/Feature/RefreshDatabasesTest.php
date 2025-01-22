@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
-use Tcb\FastRefreshDatabases\Tests\Fixtures\Models\DefaultOne;
-use Tcb\FastRefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
+use Mahbub\FastRefreshDatabases\Tests\Fixtures\Models\DefaultOne;
+use Mahbub\FastRefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
 
 beforeAll(function () {
     RefreshDatabaseState::$migrated = false;
@@ -33,7 +33,7 @@ test('can refresh multiple database connections', function () {
 test('it can infer connectionsToTransact from migration directories', function () {
     $class = new class
     {
-        use Tcb\FastRefreshDatabases\RefreshDatabases;
+        use Mahbub\FastRefreshDatabases\RefreshDatabases;
 
         public function runIt()
         {
@@ -58,7 +58,7 @@ test('it can infer connectionsToTransact from migration directories', function (
 test('it discards inferred connections if they are not configured', function () {
     $class = new class
     {
-        use Tcb\FastRefreshDatabases\RefreshDatabases;
+        use Mahbub\FastRefreshDatabases\RefreshDatabases;
 
         public function runIt()
         {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tcb\FastRefreshDatabases;
+namespace Mahbub\FastRefreshDatabases;
 
 use Illuminate\Foundation\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,38 +13,43 @@ trait RefreshDatabases
 {
     use RefreshDatabase;
 
-    protected function beforeRefreshingDatabase()
+    protected function beforeRefreshingDatabase(): void
     {
-        $this->runIt();
+        $this->beforeRefreshingDatabases();
 
         $this->setConnectionsToTransact();
     }
 
-    protected function runIt() {}
+    protected function beforeRefreshingDatabases(): void {}
 
-    protected function setConnectionsToTransact()
+    protected function setConnectionsToTransact(): void
     {
         if (property_exists($this, 'connectionsToTransact')) {
             return;
         }
 
+        $hasDefaultConnection = !is_null(config('database.default'));
+
         $migrationPath = database_path('migrations');
-        $connections = config('database.default') ? [$migrationPath => config('database.default')] : [];
+        $connections = $hasDefaultConnection ? [$migrationPath => config('database.default')] : [];
 
         if (File::exists($migrationPath)) {
+            /** @var list<string> */
+            $directories = File::directories($migrationPath);
+
             $connections = array_merge(
                 $connections,
-                collect(File::directories($migrationPath))
-                    ->mapWithKeys(fn ($path) => [$path => basename((string) $path)])
+                collect($directories)
+                    ->mapWithKeys(fn (string $path) => [$path => basename($path)])
                     ->filter(fn ($connection, $path): bool => is_array(config("database.connections.{$connection}")))
                     ->toArray()
             );
         }
 
-        $this->connectionsToTransact = $connections;
+        $this->connectionsToTransact = $connections; // @phpstan-ignore property.notFound
     }
 
-    protected function refreshTestDatabase()
+    protected function refreshTestDatabase(): void
     {
         if (!RefreshDatabaseState::$migrated) {
             $this->migrateConnections();
@@ -55,7 +60,7 @@ trait RefreshDatabases
         $this->beginDatabaseTransaction();
     }
 
-    protected function migrateConnections()
+    protected function migrateConnections(): void
     {
         foreach ($this->connectionsToTransact() as $path => $connection) {
             $this->artisan('migrate:fresh', array_merge(
@@ -68,6 +73,6 @@ trait RefreshDatabases
             ));
         }
 
-        $this->app[Kernel::class]->setArtisan(null);
+        app(Kernel::class)->setArtisan(null);
     }
 }

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Tcb\FastRefreshDatabases\FastRefreshDatabases;
-use Tcb\FastRefreshDatabases\RefreshDatabases;
-use Tcb\FastRefreshDatabases\Tests\TestCase;
+use Mahbub\FastRefreshDatabases\FastRefreshDatabases;
+use Mahbub\FastRefreshDatabases\RefreshDatabases;
+use Mahbub\FastRefreshDatabases\Tests\TestCase;
 
 pest()
     ->extends(TestCase::class)

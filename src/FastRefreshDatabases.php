@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tcb\FastRefreshDatabases;
+namespace Mahbub\FastRefreshDatabases;
 
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
@@ -17,7 +17,7 @@ trait FastRefreshDatabases
 {
     use RefreshDatabases;
 
-    protected function refreshTestDatabase()
+    protected function refreshTestDatabase(): void
     {
         if (!RefreshDatabaseState::$migrated) {
             $cachedChecksum = FastRefreshDatabaseState::$cachedChecksum ??= $this->getCachedMigrationChecksum();
@@ -69,7 +69,7 @@ trait FastRefreshDatabases
      */
     protected function getCachedMigrationChecksum(): ?string
     {
-        return rescue(fn (): string|false => File::get($this->getMigrationChecksumFile()), null, false);
+        return rescue(fn (): string => File::get($this->getMigrationChecksumFile()), null, false);
     }
 
     /**

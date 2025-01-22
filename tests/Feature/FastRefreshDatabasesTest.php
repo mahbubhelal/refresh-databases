@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\File;
-use Tcb\FastRefreshDatabases\FastRefreshDatabases;
-use Tcb\FastRefreshDatabases\FastRefreshDatabaseState;
-use Tcb\FastRefreshDatabases\Tests\Fixtures\Models\DefaultOne;
-use Tcb\FastRefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
+use Mahbub\FastRefreshDatabases\FastRefreshDatabases;
+use Mahbub\FastRefreshDatabases\FastRefreshDatabaseState;
+use Mahbub\FastRefreshDatabases\Tests\Fixtures\Models\DefaultOne;
+use Mahbub\FastRefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
 
 beforeAll(function () {
     RefreshDatabaseState::$migrated = false;

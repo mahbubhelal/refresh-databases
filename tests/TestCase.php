@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tcb\FastRefreshDatabases\Tests;
+namespace Mahbub\FastRefreshDatabases\Tests;
 
+use Mahbub\FastRefreshDatabases\FastRefreshDatabasesServiceProvider;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
-use Tcb\FastRefreshDatabases\FastRefreshDatabasesServiceProvider;
 
 abstract class TestCase extends TestbenchTestCase
 {

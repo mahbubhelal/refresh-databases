@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tcb\FastRefreshDatabases\Command;
+namespace Mahbub\FastRefreshDatabases\Command;
 
 use Exception;
 use Illuminate\Console\Command;

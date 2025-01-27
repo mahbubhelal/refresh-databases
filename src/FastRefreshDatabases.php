@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mahbub\FastRefreshDatabases;
+namespace Mahbub\RefreshDatabases;
 
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
@@ -36,8 +36,6 @@ trait FastRefreshDatabases
     }
 
     /**
-     * Calculate a checksum based on the migrations name and last modified date
-     *
      * @throws JsonException
      */
     protected function calculateMigrationChecksum(): string
@@ -64,25 +62,16 @@ trait FastRefreshDatabases
         return hash('sha256', json_encode($migrations, JSON_THROW_ON_ERROR));
     }
 
-    /**
-     * Get the cached migration checksum
-     */
     protected function getCachedMigrationChecksum(): ?string
     {
         return rescue(fn (): string => File::get($this->getMigrationChecksumFile()), null, false);
     }
 
-    /**
-     * Store the migration checksum
-     */
     protected function storeMigrationChecksum(string $checksum): void
     {
         File::put($this->getMigrationChecksumFile(), $checksum);
     }
 
-    /**
-     * Provides a configurable migration checksum file path
-     */
     protected function getMigrationChecksumFile(): string
     {
         $connection = app(ConnectionInterface::class);

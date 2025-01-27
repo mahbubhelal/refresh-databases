@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mahbub\FastRefreshDatabases;
+namespace Mahbub\RefreshDatabases;
 
 use Illuminate\Support\ServiceProvider;
-use Mahbub\FastRefreshDatabases\Command\RemoveChecksum;
+use Mahbub\RefreshDatabases\Command\RemoveChecksum;
 
-class FastRefreshDatabasesServiceProvider extends ServiceProvider
+class RefreshDatabasesServiceProvider extends ServiceProvider
 {
     #[\Override]
     public function register() {}

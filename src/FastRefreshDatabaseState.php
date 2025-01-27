@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mahbub\FastRefreshDatabases;
+namespace Mahbub\RefreshDatabases;
 
 class FastRefreshDatabaseState
 {

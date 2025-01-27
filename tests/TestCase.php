@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mahbub\FastRefreshDatabases\Tests;
+namespace Mahbub\RefreshDatabases\Tests;
 
-use Mahbub\FastRefreshDatabases\FastRefreshDatabasesServiceProvider;
+use Mahbub\RefreshDatabases\RefreshDatabasesServiceProvider;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
 
 abstract class TestCase extends TestbenchTestCase
@@ -18,7 +18,7 @@ abstract class TestCase extends TestbenchTestCase
     protected function getPackageProviders($app)
     {
         return [
-            FastRefreshDatabasesServiceProvider::class,
+            RefreshDatabasesServiceProvider::class,
         ];
     }
 

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Mahbub\FastRefreshDatabases\FastRefreshDatabases;
-use Mahbub\FastRefreshDatabases\RefreshDatabases;
-use Mahbub\FastRefreshDatabases\Tests\TestCase;
+use Mahbub\RefreshDatabases\FastRefreshDatabases;
+use Mahbub\RefreshDatabases\RefreshDatabases;
+use Mahbub\RefreshDatabases\Tests\TestCase;
 
 pest()
     ->extends(TestCase::class)

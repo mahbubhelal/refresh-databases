@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mahbub\FastRefreshDatabases\Tests\Fixtures;
+namespace Mahbub\RefreshDatabases\Tests\Fixtures;
 
-use Mahbub\FastRefreshDatabases\FastRefreshDatabases;
+use Mahbub\RefreshDatabases\FastRefreshDatabases;
 use Orchestra\Testbench\TestCase as TestbenchTestCase;
 
 /**

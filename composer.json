@@ -1,6 +1,6 @@
 {
-    "name": "mahbubhelal/fast-refresh-databases",
-    "description": "A packge for making test faster by migrating databses only when the migrations are changed.",
+    "name": "mahbubhelal/refresh-databases",
+    "description": "A package that extends Laravel's RefreshDatabase trait to support multiple database connections.",
     "type": "library",
     "version": "1.0",
     "keywords": ["laravel", "testing"],
@@ -25,19 +25,19 @@
     },
     "autoload": {
         "psr-4": {
-            "Mahbub\\FastRefreshDatabases\\": "src",
-            "Database\\Factories\\Mahbub\\FastRefreshDatabases\\": "database/factories"
+            "Mahbub\\RefreshDatabases\\": "src",
+            "Database\\Factories\\Mahbub\\RefreshDatabases\\": "database/factories"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Mahbub\\FastRefreshDatabases\\Tests\\": "tests"
+            "Mahbub\\RefreshDatabases\\Tests\\": "tests"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Mahbub\\FastRefreshDatabases\\FastRefreshDatabasesServiceProvider"
+                "Mahbub\\RefreshDatabases\\RefreshDatabasesServiceProvider"
             ]
         }
     },
@@ -47,22 +47,6 @@
         }
     },
     "scripts": {
-        "post-autoload-dump": [
-            "@clear",
-            "@prepare"
-        ],
-        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "build": "@php vendor/bin/testbench workbench:build --ansi",
-        "serve": [
-            "Composer\\Config::disableProcessTimeout",
-            "@build",
-            "@php vendor/bin/testbench serve --ansi"
-        ],
-        "lint": [
-            "@php vendor/bin/pint --ansi",
-            "@php vendor/bin/phpstan analyse --verbose --ansi"
-        ],
         "test": [
             "./vendor/bin/pint --test",
             "./vendor/bin/pest --coverage --min=100",

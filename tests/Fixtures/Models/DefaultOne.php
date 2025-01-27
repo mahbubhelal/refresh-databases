@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mahbub\FastRefreshDatabases\Tests\Fixtures\Models;
+namespace Mahbub\RefreshDatabases\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

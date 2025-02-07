@@ -1,9 +1,12 @@
 {
     "name": "mahbubhelal/refresh-databases",
-    "description": "A package that extends Laravel's RefreshDatabase trait to support multiple database connections.",
+    "description": "A package that extends Laravel's RefreshDatabase trait to support multiple database connections. Also provides fast database refreshing.",
     "type": "library",
     "version": "1.0",
-    "keywords": ["laravel", "testing"],
+    "keywords": [
+        "laravel",
+        "testing"
+    ],
     "license": "MIT",
     "authors": [
         {
@@ -47,11 +50,15 @@
         }
     },
     "scripts": {
-        "test": [
+        "lint": "./vendor/bin/pint",
+        "refactor": "./vendor/bin/rector",
+        "types": "./vendor/bin/phpstan",
+        "test": "./vendor/bin/pest",
+        "check-all": [
             "./vendor/bin/pint --test",
             "./vendor/bin/pest --coverage --min=100",
-            "./vendor/bin/phpstan",
-            "./vendor/bin/rector process --dry-run"
+            "./vendor/bin/phpstan analyze",
+            "./vendor/bin/rector --dry-run"
         ]
     }
 }

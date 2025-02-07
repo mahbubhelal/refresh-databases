@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Mahbub\RefreshDatabases;
 
 use Illuminate\Support\ServiceProvider;
-use Mahbub\RefreshDatabases\Command\RemoveChecksum;
+use Mahbub\RefreshDatabases\Command\RemoveChecksumCommand;
 
 class RefreshDatabasesServiceProvider extends ServiceProvider
 {
@@ -16,7 +16,7 @@ class RefreshDatabasesServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
-                RemoveChecksum::class,
+                RemoveChecksumCommand::class,
             ]);
         }
     }

@@ -12,7 +12,8 @@ test('can remove checksum files from storage folder', function () {
     $file->shouldReceive('delete')
         ->once();
 
-    $this->artisan('fast-refresh:remove-checksum')
+    $this->artisan('refresh:remove-checksum')
+        ->expectsOutput('Checksum file has been removed.')
         ->assertOk();
 
     unlink(storage_path('app/migration-checksum_laravel.txt'));
@@ -23,6 +24,7 @@ test('does not remove checksum files from storage folder if not present', functi
 
     $file->shouldNotReceive('delete');
 
-    $this->artisan('fast-refresh:remove-checksum')
-        ->assertExitCode(0);
+    $this->artisan('refresh:remove-checksum')
+        ->expectsOutput('Checksum file not present.')
+        ->assertExitCode(1);
 });

@@ -46,7 +46,7 @@ test('does not migrate again if migration checksums have not changed', function 
 
         public function runIt()
         {
-            $this->setConnectionsToTransact();
+            $this->setMigrationPaths();
             $this->refreshTestDatabase();
         }
 
@@ -80,7 +80,7 @@ test('migrates again if checksum mismatched', function () {
 
         public function runIt()
         {
-            $this->setConnectionsToTransact();
+            $this->setMigrationPaths();
             $this->refreshTestDatabase();
         }
 

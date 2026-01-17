@@ -6,7 +6,7 @@ namespace Mahbub\RefreshDatabases\Tests\Fixtures\Models\Other;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-class OtherOneFactory extends Factory
+final class OtherOneFactory extends Factory
 {
     protected $model = OtherOne::class;
 

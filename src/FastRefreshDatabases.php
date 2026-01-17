@@ -74,7 +74,7 @@ trait FastRefreshDatabases
 
     protected function getMigrationChecksumFile(): string
     {
-        $connection = app(ConnectionInterface::class);
+        $connection = resolve(ConnectionInterface::class);
 
         $databaseNameSlug = Str::slug($connection->getDatabaseName());
 

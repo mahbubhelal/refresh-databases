@@ -8,9 +8,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Finder\Finder;
 
-class RemoveChecksumCommand extends Command
+final class RemoveChecksumCommand extends Command
 {
-    protected $signature = 'refresh:remove-checksum';
+    protected $signature = 'refresh-databases:remove-checksum';
 
     protected $description = 'Remove the checksum file from storage';
 

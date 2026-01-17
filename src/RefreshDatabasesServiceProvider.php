@@ -7,10 +7,10 @@ namespace Mahbub\RefreshDatabases;
 use Illuminate\Support\ServiceProvider;
 use Mahbub\RefreshDatabases\Command\RemoveChecksumCommand;
 
-class RefreshDatabasesServiceProvider extends ServiceProvider
+final class RefreshDatabasesServiceProvider extends ServiceProvider
 {
     #[\Override]
-    public function register() {}
+    public function register(): void {}
 
     public function boot(): void
     {

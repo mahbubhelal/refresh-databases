@@ -7,7 +7,7 @@ namespace Mahbub\RefreshDatabases;
 use Illuminate\Foundation\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
-use Illuminate\Support\Facades\File;
+use RuntimeException;
 
 trait RefreshDatabases
 {
@@ -18,35 +18,62 @@ trait RefreshDatabases
         $this->beforeRefreshingDatabases();
 
         $this->setConnectionsToTransact();
+
+        $this->setMigrationPaths();
     }
 
     protected function beforeRefreshingDatabases(): void {}
 
     protected function setConnectionsToTransact(): void
     {
-        if (property_exists($this, 'connectionsToTransact')) {
+        if (property_exists($this, 'connectionsToTransact')) { // @phpstan-ignore function.impossibleType
             return;
         }
 
-        $hasDefaultConnection = !is_null(config('database.default'));
+        $defaultConnection = config('database.default');
 
+        $this->connectionsToTransact = [$defaultConnection]; // @phpstan-ignore property.notFound
+    }
+
+    protected function setMigrationPaths(): void
+    {
+        /** @var array<string, string> */
+        $migrationPaths = $this->migrationPaths ?? []; // @phpstan-ignore property.notFound
+
+        $paths = [];
         $migrationPath = database_path('migrations');
-        $connections = $hasDefaultConnection ? [$migrationPath => config('database.default')] : [];
+        $defaultConnection = config('database.default');
 
-        if (File::exists($migrationPath)) {
-            /** @var list<string> */
-            $directories = File::directories($migrationPath);
+        /** @var array<string> */
+        $connections = $this->connectionsToTransact; // @phpstan-ignore property.notFound
 
-            $connections = array_merge(
-                $connections,
-                collect($directories)
-                    ->mapWithKeys(fn (string $path) => [$path => basename($path)])
-                    ->filter(fn ($connection, $path): bool => is_array(config("database.connections.{$connection}")))
-                    ->toArray()
-            );
+        foreach ($connections as $connection) {
+            if (!is_array(config("database.connections.{$connection}"))) {
+                throw new RuntimeException("Database connection [{$connection}] is not defined.");
+            }
+
+            if ($connection === $defaultConnection) {
+                $paths[$connection] = $migrationPath;
+
+                continue;
+            }
+
+            $paths[$connection] = array_key_exists($connection, $migrationPaths)
+                ? $migrationPaths[$connection]
+                : $migrationPath . '/' . $connection;
         }
 
-        $this->connectionsToTransact = $connections; // @phpstan-ignore property.notFound
+        $this->migrationPaths = $paths; // @phpstan-ignore property.notFound
+    }
+
+    /**
+     * Get the migration paths mapping.
+     *
+     * @return array<string, string>
+     */
+    protected function migrationPaths(): array
+    {
+        return $this->migrationPaths; // @phpstan-ignore property.notFound, return.type
     }
 
     protected function refreshTestDatabase(): void
@@ -62,7 +89,7 @@ trait RefreshDatabases
 
     protected function migrateConnections(): void
     {
-        foreach ($this->connectionsToTransact() as $path => $connection) {
+        foreach ($this->migrationPaths() as $connection => $path) {
             $this->artisan('migrate:fresh', array_merge(
                 [
                     '--database' => $connection,
@@ -73,6 +100,6 @@ trait RefreshDatabases
             ));
         }
 
-        app(Kernel::class)->setArtisan(null);
+        resolve(Kernel::class)->setArtisan(null);
     }
 }

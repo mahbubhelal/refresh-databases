@@ -7,7 +7,7 @@ namespace Mahbub\RefreshDatabases\Tests\Fixtures\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DefaultOne extends Model
+final class DefaultOne extends Model
 {
     use HasFactory;
 

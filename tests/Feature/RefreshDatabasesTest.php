@@ -30,14 +30,19 @@ test('can refresh multiple database connections', function () {
     expect(OtherOne::count())->toBe(1);
 });
 
-test('it can infer connectionsToTransact from migration directories', function () {
+test('it can infer migrationPaths from migration directories', function () {
     $class = new class
     {
         use Mahbub\RefreshDatabases\RefreshDatabases;
 
         public function runIt()
         {
-            $this->setConnectionsToTransact();
+            $this->setMigrationPaths();
+        }
+
+        public function getMigrationPaths()
+        {
+            return $this->migrationPaths;
         }
 
         public function getConnectionsToTransact()
@@ -48,11 +53,14 @@ test('it can infer connectionsToTransact from migration directories', function (
 
     $class->runIt();
 
-    expect($class->getConnectionsToTransact())
+    expect($class->getMigrationPaths())
         ->toBe([
             database_path('migrations') => 'default',
             database_path('migrations/other') => 'other',
         ]);
+
+    expect($class->getConnectionsToTransact())
+        ->toBe(['default', 'other']);
 });
 
 test('it discards inferred connections if they are not configured', function () {
@@ -62,7 +70,12 @@ test('it discards inferred connections if they are not configured', function () 
 
         public function runIt()
         {
-            $this->setConnectionsToTransact();
+            $this->setMigrationPaths();
+        }
+
+        public function getMigrationPaths()
+        {
+            return $this->migrationPaths;
         }
 
         public function getConnectionsToTransact()
@@ -75,8 +88,11 @@ test('it discards inferred connections if they are not configured', function () 
 
     $class->runIt();
 
-    expect($class->getConnectionsToTransact())
+    expect($class->getMigrationPaths())
         ->toBe([
             database_path('migrations') => 'default',
         ]);
+
+    expect($class->getConnectionsToTransact())
+        ->toBe(['default']);
 });

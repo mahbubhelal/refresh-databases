@@ -10,7 +10,7 @@ use Orchestra\Testbench\TestCase as TestbenchTestCase;
 /**
  * FakeTestCase fo phpstan to recognize the FastRefreshDatabases trait
  */
-class FakeTestCase extends TestbenchTestCase
+final class FakeTestCase extends TestbenchTestCase
 {
     use FastRefreshDatabases;
 }

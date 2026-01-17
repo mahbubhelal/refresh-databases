@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Mahbub\RefreshDatabases;
 
-class FastRefreshDatabaseState
+final class FastRefreshDatabaseState
 {
     /** The checksum cached in the migrationChecksum.txt file */
     public static ?string $cachedChecksum = null;

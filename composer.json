@@ -18,8 +18,8 @@
         "php": "^8.3"
     },
     "require-dev": {
-        "orchestra/testbench": "^9.5",
-        "pestphp/pest": "^3.5",
+        "orchestra/testbench": "^9.5 || ^10.0",
+        "pestphp/pest": "^3.5 || ^4.0",
         "laravel/pint": "^1.18",
         "larastan/larastan": "^3.0",
         "rector/rector": "^2.0",
@@ -50,15 +50,22 @@
         }
     },
     "scripts": {
-        "lint": "./vendor/bin/pint",
-        "refactor": "./vendor/bin/rector",
-        "types": "./vendor/bin/phpstan",
-        "test": "./vendor/bin/pest",
-        "check-all": [
-            "./vendor/bin/pint --test",
-            "./vendor/bin/pest --coverage --min=100",
-            "./vendor/bin/phpstan analyze",
-            "./vendor/bin/rector --dry-run"
+        "coverage": "./dc pest --coverage --bail",
+        "format": "./dc pint",
+        "refactor": "./dc rector",
+        "test": "./dc pest",
+        "types": "./dc phpstan --memory-limit=1024M",
+        "all": [
+            "@refactor",
+            "@format",
+            "@types",
+            "@test --bail"
+        ],
+        "check": [
+            "@refactor --dry-run",
+            "@format --test",
+            "@types",
+            "@coverage --bail --min=100"
         ]
     }
 }

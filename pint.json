@@ -29,6 +29,8 @@
         "phpdoc_line_span": {
             "const": "single",
             "property": "single"
-        }
+        },
+
+        "final_class": true
     }
 }

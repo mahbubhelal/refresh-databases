@@ -9,10 +9,8 @@ use Orchestra\Testbench\TestCase as TestbenchTestCase;
 
 abstract class TestCase extends TestbenchTestCase
 {
-    protected $connectionsToTransact = [
-        __DIR__ . '/Fixtures/database/migrations' => 'default',
-        __DIR__ . '/Fixtures/database/migrations/other' => 'other',
-    ];
+    /** @var array<string> */
+    protected $connectionsToTransact = ['default', 'other'];
 
     #[\Override]
     protected function getPackageProviders($app)
@@ -26,8 +24,8 @@ abstract class TestCase extends TestbenchTestCase
     {
         $baseOptions = [
             'url' => '',
-            'host' => '127.0.0.1',
-            'port' => '13306',
+            'host' => env('DB_HOST'),
+            'port' => env('DB_PORT'),
             'driver' => 'mysql',
             'database' => 'laravel',
             'username' => 'root',

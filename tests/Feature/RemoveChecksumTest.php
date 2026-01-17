@@ -12,7 +12,7 @@ test('can remove checksum files from storage folder', function () {
     $file->shouldReceive('delete')
         ->once();
 
-    $this->artisan('refresh:remove-checksum')
+    $this->artisan('refresh-databases:remove-checksum')
         ->expectsOutput('Checksum file has been removed.')
         ->assertOk();
 
@@ -24,7 +24,7 @@ test('does not remove checksum files from storage folder if not present', functi
 
     $file->shouldNotReceive('delete');
 
-    $this->artisan('refresh:remove-checksum')
+    $this->artisan('refresh-databases:remove-checksum')
         ->expectsOutput('Checksum file not present.')
         ->assertExitCode(1);
 });

@@ -44,6 +44,9 @@ test('does not migrate again if migration checksums have not changed', function 
 
         public static $called = 0;
 
+        /** @var array<string> */
+        protected $connectionsToTransact = ['default'];
+
         public function runIt()
         {
             $this->setMigrationPaths();
@@ -77,6 +80,9 @@ test('migrates again if checksum mismatched', function () {
         use FastRefreshDatabases;
 
         public static $called = 0;
+
+        /** @var array<string> */
+        protected $connectionsToTransact = ['default'];
 
         public function runIt()
         {

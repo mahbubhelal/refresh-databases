@@ -1,11 +1,17 @@
 {
     "name": "mahbubhelal/refresh-databases",
-    "description": "A package that extends Laravel's RefreshDatabase trait to support multiple database connections. Also provides fast database refreshing.",
+    "description": "A Laravel package that extends RefreshDatabase trait to support multiple database connections with separate migration paths. Also provides fast database refreshing with checksum-based caching.",
     "type": "library",
-    "version": "1.0",
     "keywords": [
         "laravel",
-        "testing"
+        "testing",
+        "database",
+        "migrations",
+        "refresh-database",
+        "multiple-databases",
+        "test-database",
+        "phpunit",
+        "pest"
     ],
     "license": "MIT",
     "authors": [
@@ -15,7 +21,12 @@
         }
     ],
     "require": {
-        "php": "^8.3"
+        "php": "^8.3",
+        "illuminate/console": "^11.0 || ^12.0",
+        "illuminate/database": "^11.0 || ^12.0",
+        "illuminate/support": "^11.0 || ^12.0",
+        "symfony/finder": "^7.0",
+        "symfony/process": "^7.0"
     },
     "require-dev": {
         "orchestra/testbench": "^9.5 || ^10.0",
@@ -28,13 +39,13 @@
     },
     "autoload": {
         "psr-4": {
-            "Mahbub\\RefreshDatabases\\": "src",
-            "Database\\Factories\\Mahbub\\RefreshDatabases\\": "database/factories"
+            "Mahbub\\RefreshDatabases\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Mahbub\\RefreshDatabases\\Tests\\": "tests"
+            "Mahbub\\RefreshDatabases\\Tests\\": "tests",
+            "Database\\Factories\\Mahbub\\RefreshDatabases\\": "database/factories"
         }
     },
     "extra": {
@@ -44,10 +55,13 @@
             ]
         }
     },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true
-        }
+        },
+        "sort-packages": true
     },
     "scripts": {
         "coverage": "./dc pest --coverage --bail",

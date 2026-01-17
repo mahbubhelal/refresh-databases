@@ -22,6 +22,13 @@ trait RefreshDatabases
         $this->setMigrationPaths();
     }
 
+    protected function afterRefreshingDatabase(): void
+    {
+        $this->afterRefreshingDatabases();
+    }
+
+    protected function afterRefreshingDatabases(): void {}
+
     protected function beforeRefreshingDatabases(): void {}
 
     protected function setConnectionsToTransact(): void
@@ -71,7 +78,7 @@ trait RefreshDatabases
      *
      * @return array<string, string>
      */
-    protected function migrationPaths(): array
+    protected function getMigrationPaths(): array
     {
         return $this->migrationPaths; // @phpstan-ignore property.notFound, return.type
     }
@@ -89,7 +96,7 @@ trait RefreshDatabases
 
     protected function migrateConnections(): void
     {
-        foreach ($this->migrationPaths() as $connection => $path) {
+        foreach ($this->getMigrationPaths() as $connection => $path) {
             $this->artisan('migrate:fresh', array_merge(
                 [
                     '--database' => $connection,

@@ -9,6 +9,8 @@ use Mahbub\RefreshDatabases\FastRefreshDatabaseState;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\DefaultOne;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
 
+uses(FastRefreshDatabases::class);
+
 beforeAll(function () {
     RefreshDatabaseState::$migrated = false;
 });

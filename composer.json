@@ -67,19 +67,19 @@
         "coverage": "./dc pest --coverage --bail",
         "format": "./dc pint",
         "refactor": "./dc rector",
-        "test": "./dc pest",
+        "test": "./dc pest --bail",
         "types": "./dc phpstan --memory-limit=1024M",
         "all": [
             "@refactor",
             "@format",
             "@types",
-            "@test --bail"
+            "@test"
         ],
         "check": [
             "@refactor --dry-run",
             "@format --test",
             "@types",
-            "@coverage --bail --min=100"
+            "@coverage --min=100"
         ]
     }
 }

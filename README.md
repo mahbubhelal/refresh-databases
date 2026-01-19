@@ -145,19 +145,34 @@ php artisan refresh-databases:remove-checksum
 
 This removes all `migration-checksum_*.txt` files from the storage directory.
 
-## Directory Structure
+## SQL Server Support
 
-Recommended migration directory structure for multiple connections:
+For SQL Server connections where Laravel's built-in schema dump loading doesn't work, the package automatically loads schema files from `database/schema/{connection}-schema.sql` after running migrations.
+
+You can also provide seed data via `database/schema/{connection}-seed.sql`.
 
 ```
 database/
+└── schema/
+    ├── sqlsrv-reporting-schema.sql    # SQL Server schema dump
+    └── sqlsrv-reporting-seed.sql      # Optional seed data
+```
+
+## Directory Structure
+
+Recommended directory structure for multiple connections:
+
+```
+database/
+├── schema/
+│   ├── mysql-cid-schema.sql           # MySQL schema (auto-loaded by Laravel)
+│   ├── sqlsrv-tcb-schema.sql          # SQL Server schema (loaded by package)
+│   └── sqlsrv-tcb-seed.sql            # Optional SQL seed file
 └── migrations/
     ├── 2024_01_01_000000_create_users_table.php      # default connection
     ├── 2024_01_01_000001_create_posts_table.php      # default connection
-    ├── reporting/
-    │   └── 2024_01_01_000000_create_reports_table.php
-    └── analytics/
-        └── 2024_01_01_000000_create_events_table.php
+    └── mysql-cid/
+        └── 2024_01_01_000000_create_other_table.php
 ```
 
 ## Credits

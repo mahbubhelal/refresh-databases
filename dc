@@ -25,6 +25,7 @@ Commands:
     exec <cmd>         Execute a command in the container
     composer <cmd>     Run composer command in the container
     php [cmd]          Run PHP command in the container
+    testbench [cmd]    Run Testbench command in the container
     pint [args]        Run Laravel Pint in the container
     rector [args]      Run Rector in the container
     phpstan [args]     Run PHPStan in the container
@@ -112,6 +113,10 @@ cmd_php() {
     docker compose exec "$SERVICE" php "$@"
 }
 
+cmd_testbench() {
+    docker compose exec "$SERVICE" ./vendor/bin/testbench "$@"
+}
+
 cmd_pint() {
     docker compose exec "$SERVICE" ./vendor/bin/pint "$@"
 }
@@ -167,6 +172,7 @@ case "$COMMAND" in
     exec)       cmd_exec "${REMAINING_ARGS[@]}" ;;
     composer)   cmd_composer "${REMAINING_ARGS[@]}" ;;
     php)        cmd_php "${REMAINING_ARGS[@]}" ;;
+    testbench)  cmd_testbench "${REMAINING_ARGS[@]}" ;;
     pint)       cmd_pint "${REMAINING_ARGS[@]}" ;;
     rector)     cmd_rector "${REMAINING_ARGS[@]}" ;;
     phpstan)    cmd_phpstan "${REMAINING_ARGS[@]}" ;;

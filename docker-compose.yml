@@ -3,7 +3,6 @@ services:
         container_name: refresh-databases_local
         build:
             context: .
-            dockerfile: ./docker/Dockerfile
         working_dir: /var/www/app
         volumes:
             - .:/var/www/app
@@ -14,14 +13,26 @@ services:
         stdin_open: true
         depends_on:
             - test-mysql
+            - test-sqlsrv
 
     test-mysql:
         container_name: refresh-databases_test-mysql
         image: mysql:8.0
         volumes:
             - ./docker/create-databases.sql:/docker-entrypoint-initdb.d/init.sql
+            - ./docker/mysql-server.cnf:/etc/mysql/conf.d/mysql-server.cnf
         environment:
             - MYSQL_ALLOW_EMPTY_PASSWORD=yes
             - MYSQL_DATABASE=laravel
         ports:
             - 13306:3306
+
+    test-sqlsrv:
+        container_name: refresh-databases_test-sqlsrv
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        environment:
+            - ACCEPT_EULA=Y
+            - MSSQL_SA_PASSWORD=Strong@Passw0rd
+            - MSSQL_PID=Developer
+        ports:
+            - 11433:1433

@@ -9,8 +9,11 @@ use Orchestra\Testbench\TestCase as TestbenchTestCase;
 
 abstract class TestCase extends TestbenchTestCase
 {
-    /** @var array<string> */
-    protected $connectionsToTransact = ['default', 'other'];
+    protected $connectionsToTransact = ['default', 'other', 'sqlsrv'];
+
+    protected $migrationPaths = [
+        'sqlsrv' => __DIR__ . '/Fixtures/database/migrations/sqlsrv',
+    ];
 
     #[\Override]
     protected function getPackageProviders($app)
@@ -22,10 +25,10 @@ abstract class TestCase extends TestbenchTestCase
 
     protected function getEnvironmentSetUp($app)
     {
-        $baseOptions = [
+        $mysqlOptions = [
             'url' => '',
-            'host' => env('DB_HOST'),
-            'port' => env('DB_PORT'),
+            'host' => env('DB_HOST', 'test-mysql'),
+            'port' => env('DB_PORT', '3306'),
             'driver' => 'mysql',
             'database' => 'laravel',
             'username' => 'root',
@@ -41,8 +44,22 @@ abstract class TestCase extends TestbenchTestCase
         ];
 
         $app['config']->set('database.default', 'default');
-        $app['config']->set('database.connections.default', $baseOptions);
-        $app['config']->set('database.connections.other', array_merge($baseOptions, ['database' => 'other']));
+        $app['config']->set('database.connections.default', $mysqlOptions);
+        $app['config']->set('database.connections.other', array_merge($mysqlOptions, ['database' => 'other']));
+
+        $app['config']->set('database.connections.sqlsrv', [
+            'driver' => 'sqlsrv',
+            'host' => env('SQLSRV_HOST', 'test-sqlsrv'),
+            'port' => env('SQLSRV_PORT', '1433'),
+            'database' => env('SQLSRV_DATABASE', 'master'),
+            'username' => env('SQLSRV_USERNAME', 'sa'),
+            'password' => env('SQLSRV_PASSWORD', 'YourStrong@Passw0rd'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'encrypt' => env('SQLSRV_ENCRYPT', 'no'),
+            'trust_server_certificate' => env('SQLSRV_TRUST_CERT', true),
+        ]);
 
         $app->useDatabasePath(__DIR__ . '/Fixtures/database');
         $app->useStoragePath(__DIR__ . '/Fixtures/storage');

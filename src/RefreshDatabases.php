@@ -8,11 +8,38 @@ use Illuminate\Foundation\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\ParallelTesting;
 use RuntimeException;
 
 trait RefreshDatabases
 {
     use RefreshDatabase;
+
+    /** @var array<string, string> */
+    protected static array $databaseNameMap = [];
+
+    /** @var array<string, string> connection name → original database name */
+    protected static array $originalDatabaseNames = [];
+
+    public function replaceParallelDatabaseNames(string $sql): string
+    {
+        foreach (static::$databaseNameMap as $original => $parallel) {
+            $sql = preg_replace(
+                '/\b' . preg_quote($original, '/') . '\.dbo\./i',
+                $parallel . '.dbo.',
+                $sql
+            ) ?? $sql;
+
+            $sql = preg_replace(
+                '/\b' . preg_quote($original, '/') . '\.(\w)/i',
+                $parallel . '.$1',
+                $sql
+            ) ?? $sql;
+        }
+
+        return $sql;
+    }
 
     protected function beforeRefreshingDatabase(): void
     {
@@ -20,7 +47,99 @@ trait RefreshDatabases
 
         $this->setConnectionsToTransact();
 
+        $this->configureParallelDatabases();
+
         $this->setMigrationPaths();
+    }
+
+    protected function configureParallelDatabases(): void
+    {
+        $token = ParallelTesting::token();
+
+        if ($token === false) {
+            return;
+        }
+
+        /** @var array<string> */
+        $connections = $this->connectionsToTransact; // @phpstan-ignore property.notFound
+
+        foreach ($connections as $connection) {
+            $this->configureParallelDatabase($connection, $token);
+        }
+    }
+
+    protected function configureParallelDatabase(string $connection, string $token): void
+    {
+        $configKey = "database.connections.{$connection}.database";
+
+        if (array_key_exists($connection, static::$originalDatabaseNames)) {
+            config([$configKey => static::$originalDatabaseNames[$connection] . "_test_{$token}"]);
+
+            return;
+        }
+
+        $baseDatabase = config($configKey);
+
+        if (!is_string($baseDatabase) || $baseDatabase === ':memory:') {
+            return;
+        }
+
+        static::$originalDatabaseNames[$connection] = $baseDatabase;
+
+        $parallelDatabase = "{$baseDatabase}_test_{$token}";
+
+        config([$configKey => $parallelDatabase]);
+
+        $this->ensureParallelDatabaseExists($connection, $parallelDatabase);
+
+        static::$databaseNameMap[$baseDatabase] = $parallelDatabase;
+    }
+
+    protected function ensureParallelDatabaseExists(string $connection, string $database): void
+    {
+        $driver = config("database.connections.{$connection}.driver");
+
+        if ($driver === 'mysql') {
+            $this->createMysqlDatabase($connection, $database);
+        } elseif ($driver === 'sqlsrv') {
+            $this->createSqlServerDatabase($connection, $database);
+        }
+    }
+
+    protected function createMysqlDatabase(string $connection, string $database): void
+    {
+        /** @var string $charset */
+        $charset = config("database.connections.{$connection}.charset");
+        /** @var string $collation */
+        $collation = config("database.connections.{$connection}.collation");
+
+        config(["database.connections.{$connection}.database" => null]);
+        DB::purge($connection);
+
+        DB::connection($connection)->statement(
+            "CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET {$charset} COLLATE {$collation}"
+        );
+
+        config(["database.connections.{$connection}.database" => $database]);
+        DB::purge($connection);
+    }
+
+    protected function createSqlServerDatabase(string $connection, string $database): void
+    {
+        config(["database.connections.{$connection}.database" => null]);
+        DB::purge($connection);
+
+        $exists = DB::connection($connection)->selectOne(
+            'SELECT name FROM sys.databases WHERE name = ?',
+            [$database]
+        );
+
+        if ($exists === null) {
+            DB::connection($connection)->statement("CREATE DATABASE [{$database}]");
+        }
+
+        config(["database.connections.{$connection}.database" => $database]);
+        DB::purge($connection);
     }
 
     protected function afterRefreshingDatabase(): void
@@ -28,9 +147,9 @@ trait RefreshDatabases
         $this->afterRefreshingDatabases();
     }
 
-    protected function afterRefreshingDatabases(): void {}
-
     protected function beforeRefreshingDatabases(): void {}
+
+    protected function afterRefreshingDatabases(): void {}
 
     protected function setConnectionsToTransact(): void
     {
@@ -75,8 +194,6 @@ trait RefreshDatabases
     }
 
     /**
-     * Get the migration paths mapping.
-     *
      * @return array<string, string>
      */
     protected function getMigrationPaths(): array
@@ -107,7 +224,9 @@ trait RefreshDatabases
                 $this->migrateFreshUsing()
             ));
 
-            if (config("database.connections.{$connection}.driver") === 'sqlsrv') {
+            $driver = config("database.connections.{$connection}.driver");
+
+            if ($driver === 'sqlsrv') {
                 $this->loadSqlSrvConnectionSchema($connection);
             }
 
@@ -115,14 +234,10 @@ trait RefreshDatabases
         }
 
         resolve(Kernel::class)->setArtisan(null);
+
+        $this->updateLocalCacheOfInMemoryDatabases();
     }
 
-    /**
-     * Load schema from SQL file for SQL Server connections.
-     *
-     * Laravel's built-in schema dump loading doesn't work well with SQL Server,
-     * so this method manually loads schema from database/schema/{connection}-schema.sql.
-     */
     protected function loadSqlSrvConnectionSchema(string $connection): void
     {
         $schemaPath = database_path("schema/{$connection}-schema.sql");
@@ -131,8 +246,12 @@ trait RefreshDatabases
             return;
         }
 
+        $schema = File::get($schemaPath);
+
+        $schema = $this->replaceParallelDatabaseNames($schema);
+
         $statements = array_filter(
-            explode(';', (string) file_get_contents($schemaPath)),
+            explode(';', $schema),
             static fn (string $s): bool => trim($s) !== ''
         );
 
@@ -141,9 +260,6 @@ trait RefreshDatabases
         }
     }
 
-    /**
-     * Load seed data for a connection from SQL file.
-     */
     protected function loadConnectionSeeds(string $connection): void
     {
         $seedPath = database_path("schema/{$connection}-seed.sql");
@@ -152,8 +268,12 @@ trait RefreshDatabases
             return;
         }
 
+        $seed = File::get($seedPath);
+
+        $seed = $this->replaceParallelDatabaseNames($seed);
+
         $statements = array_filter(
-            explode(';', (string) file_get_contents($seedPath)),
+            explode(';', $seed),
             static fn (string $s): bool => trim($s) !== ''
         );
 

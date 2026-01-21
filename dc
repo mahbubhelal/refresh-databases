@@ -135,7 +135,7 @@ cmd_pest() {
 
 cmd_testing() {
     export HOST_UID HOST_GID
-    docker compose up -d test-mysql local --no-build
+    docker compose up -d test-mysql
 }
 
 cmd_reup() {

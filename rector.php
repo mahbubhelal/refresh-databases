@@ -6,6 +6,7 @@ use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\Node\RemoveNonExistingVarAnnotationRector;
 use Rector\Php74\Rector\Property\RestoreDefaultNullToNullableTypePropertyRector;
+use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
 use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
@@ -21,6 +22,7 @@ return RectorConfig::configure()
         PostIncDecToPreIncDecRector::class,
         RestoreDefaultNullToNullableTypePropertyRector::class,
         RemoveNonExistingVarAnnotationRector::class,
+        NullToStrictStringFuncCallArgRector::class,
     ])
     ->withSets([
         LevelSetList::UP_TO_PHP_83,

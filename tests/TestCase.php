@@ -53,7 +53,7 @@ abstract class TestCase extends TestbenchTestCase
             'port' => env('SQLSRV_PORT', '1433'),
             'database' => env('SQLSRV_DATABASE', 'master'),
             'username' => env('SQLSRV_USERNAME', 'sa'),
-            'password' => env('SQLSRV_PASSWORD', 'YourStrong@Passw0rd'),
+            'password' => env('SQLSRV_PASSWORD', 'Strong@Passw0rd'),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,

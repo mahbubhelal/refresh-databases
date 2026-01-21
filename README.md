@@ -1,6 +1,6 @@
 # Refresh Databases
 
-A Laravel package that extends the `RefreshDatabase` trait to support multiple database connections with separate migration paths. Also provides a fast database refreshing mechanism that skips migrations when migration is unchanged.
+A Laravel package that extends the `RefreshDatabase` trait to support multiple database connections with separate migration paths. Also provides a fast database refreshing mechanism that skips migrations when migrations are unchanged.
 
 ## Requirements
 
@@ -145,34 +145,88 @@ php artisan refresh-databases:remove-checksum
 
 This removes all `migration-checksum_*.txt` files from the storage directory.
 
-## SQL Server Support
+## SQL Server Schema Loading
 
-For SQL Server connections where Laravel's built-in schema dump loading doesn't work, the package automatically loads schema files from `database/schema/{connection}-schema.sql` after running migrations.
-
-You can also provide seed data via `database/schema/{connection}-seed.sql`.
+Laravel's built-in schema dump doesn't work well with SQL Server. For `sqlsrv` driver connections, the package automatically loads schema files from `database/schema/{connection}-schema.sql` after running migrations.
 
 ```
 database/
 └── schema/
-    ├── sqlsrv-reporting-schema.sql    # SQL Server schema dump
-    └── sqlsrv-reporting-seed.sql      # Optional seed data
+    ├── reporting-schema.sql    # Loaded for 'reporting' connection (if driver is sqlsrv)
+    └── reporting-seed.sql      # Optional seed data
+```
+
+## Seed Files
+
+You can provide seed data for any connection via `database/schema/{connection}-seed.sql`. Unlike schema files (which only load for SQL Server), seed files are loaded for all connections.
+
+```
+database/
+└── schema/
+    ├── mysql-seed.sql       # Loaded for 'mysql' connection
+    └── reporting-seed.sql   # Loaded for 'reporting' connection
+```
+
+## Parallel Testing
+
+The package fully supports Laravel's parallel testing. When running tests with `--parallel`, the package automatically:
+
+1. **Creates separate test databases** for each parallel process (suffixed with `_test_{token}`)
+2. **Replaces database names** in schema and seed SQL files to target the correct parallel database
+
+### Automatic Database Creation
+
+When a parallel test process starts, the package creates a new database if it doesn't exist. The `{database}` is the configured database name from your connection config (not the connection name):
+
+- **MySQL**: `CREATE DATABASE IF NOT EXISTS {database}_test_{token}`
+- **SQL Server**: `CREATE DATABASE [{database}_test_{token}]`
+
+For example, if your `reporting` connection has `database: 'reports_db'`, the parallel database would be `reports_db_test_1`.
+
+### SQL Server Three-Part Naming in Parallel Tests
+
+SQL Server schema and seed files often use three-part naming: `Database.Schema.Table`. During parallel testing, database names in SQL are automatically replaced with the parallel database name.
+
+```sql
+-- database/schema/tcb-schema.sql (for connection named 'tcb')
+CREATE TABLE TCB.dbo.Conferences (
+    Conference_ID bigint NOT NULL,
+    Title nvarchar(175)
+);
+```
+
+During parallel testing, this becomes:
+- `TCB.dbo.Conferences` → `TCB_test_1.dbo.Conferences`
+
+MySQL seed files typically use simple table names since the connection already targets the correct database.
+
+### Running Parallel Tests
+
+```bash
+# Run tests in parallel (uses available CPU cores)
+php artisan test --parallel
+
+# Run with specific number of processes
+php artisan test --parallel --processes=4
 ```
 
 ## Directory Structure
 
-Recommended directory structure for multiple connections:
+Recommended directory structure for multiple connections (assuming `mysql` is default, with additional `reporting` and `analytics` connections):
 
 ```
 database/
 ├── schema/
-│   ├── mysql-cid-schema.sql           # MySQL schema (auto-loaded by Laravel)
-│   ├── sqlsrv-tcb-schema.sql          # SQL Server schema (loaded by package)
-│   └── sqlsrv-tcb-seed.sql            # Optional SQL seed file
+│   ├── reporting-schema.sql     # SQL Server schema (loaded by package for sqlsrv driver)
+│   ├── reporting-seed.sql       # Seed data (loaded for any driver)
+│   └── analytics-seed.sql       # Seed data for analytics connection
 └── migrations/
-    ├── 2024_01_01_000000_create_users_table.php      # default connection
-    ├── 2024_01_01_000001_create_posts_table.php      # default connection
-    └── mysql-cid/
-        └── 2024_01_01_000000_create_other_table.php
+    ├── 2024_01_01_000000_create_users_table.php      # default (mysql) connection
+    ├── 2024_01_01_000001_create_posts_table.php      # default (mysql) connection
+    ├── reporting/
+    │   └── 2024_01_01_000000_create_reports_table.php
+    └── analytics/
+        └── 2024_01_01_000000_create_metrics_table.php
 ```
 
 ## Credits

@@ -49,16 +49,13 @@ trait FastRefreshDatabases
 
         $migrations = array_map(static fn (SplFileInfo $fileInfo): array => [$fileInfo->getMTime(), $fileInfo->getPath()], iterator_to_array($files));
 
-        // Reset the array keys so there is less data
         $migrations = array_values($migrations);
 
-        // Add the current git branch
         $checkBranch = new Process(['git', 'branch', '--show-current']);
         $checkBranch->run();
 
         $migrations['gitBranch'] = trim($checkBranch->getOutput());
 
-        // Create a hash
         return hash('sha256', json_encode($migrations, JSON_THROW_ON_ERROR));
     }
 

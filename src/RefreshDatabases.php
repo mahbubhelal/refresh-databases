@@ -19,7 +19,7 @@ trait RefreshDatabases
     /** @var array<string, string> */
     protected static array $databaseNameMap = [];
 
-    /** @var array<string, string> connection name → original database name */
+    /** @var array<string, string> */
     protected static array $originalDatabaseNames = [];
 
     public function replaceParallelDatabaseNames(string $sql): string

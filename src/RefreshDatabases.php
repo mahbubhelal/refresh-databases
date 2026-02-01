@@ -224,13 +224,12 @@ trait RefreshDatabases
                 $this->migrateFreshUsing()
             ));
 
-            $driver = config("database.connections.{$connection}.driver");
-
-            if ($driver === 'sqlsrv') {
-                $this->loadSqlSrvConnectionSchema($connection);
+            if (!$this->supportsSchemaLoading($connection)) {
+                $this->loadSqlFile($connection, 'schema');
             }
 
-            $this->loadConnectionSeeds($connection);
+            $this->loadSqlFile($connection, 'views');
+            $this->loadSqlFile($connection, 'seed');
         }
 
         resolve(Kernel::class)->setArtisan(null);
@@ -238,42 +237,25 @@ trait RefreshDatabases
         $this->updateLocalCacheOfInMemoryDatabases();
     }
 
-    protected function loadSqlSrvConnectionSchema(string $connection): void
+    protected function supportsSchemaLoading(string $connection): bool
     {
-        $schemaPath = database_path("schema/{$connection}-schema.sql");
+        $driver = config("database.connections.{$connection}.driver");
 
-        if (!file_exists($schemaPath)) {
-            return;
-        }
-
-        $schema = File::get($schemaPath);
-
-        $schema = $this->replaceParallelDatabaseNames($schema);
-
-        $statements = array_filter(
-            explode(';', $schema),
-            static fn (string $s): bool => trim($s) !== ''
-        );
-
-        foreach ($statements as $statement) {
-            DB::connection($connection)->statement(trim($statement));
-        }
+        return in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlite'], true);
     }
 
-    protected function loadConnectionSeeds(string $connection): void
+    protected function loadSqlFile(string $connection, string $type): void
     {
-        $seedPath = database_path("schema/{$connection}-seed.sql");
+        $path = database_path("schema/{$connection}-{$type}.sql");
 
-        if (!file_exists($seedPath)) {
+        if (!file_exists($path)) {
             return;
         }
 
-        $seed = File::get($seedPath);
-
-        $seed = $this->replaceParallelDatabaseNames($seed);
+        $sql = $this->replaceParallelDatabaseNames(File::get($path));
 
         $statements = array_filter(
-            explode(';', $seed),
+            explode(';', $sql),
             static fn (string $s): bool => trim($s) !== ''
         );
 

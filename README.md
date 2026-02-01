@@ -135,9 +135,13 @@ abstract class TestCase extends BaseTestCase
 3. Only runs migrations if the checksum differs
 4. Stores the new checksum after successful migration
 
+### Caveats
+
+The checksum only covers migration files and the git branch. Changes to SQL files (`schema`, `views`, `seed`) are **not** detected. If you modify an SQL file without changing any migration, clear the checksum to force a re-run.
+
 ### Clearing the Checksum
 
-If you need to force a fresh migration, remove the checksum file:
+To force a fresh migration, remove the checksum file:
 
 ```bash
 php artisan refresh-databases:remove-checksum
@@ -145,26 +149,32 @@ php artisan refresh-databases:remove-checksum
 
 This removes all `migration-checksum_*.txt` files from the storage directory.
 
-## SQL Server Schema Loading
+## SQL Files
 
-Laravel's built-in schema dump doesn't work well with SQL Server. For `sqlsrv` driver connections, the package automatically loads schema files from `database/schema/{connection}-schema.sql` after running migrations.
+After running `migrate:fresh` on each connection, the package loads optional SQL files from `database/schema/` in the following order:
+
+### Schema Files
+
+For connections whose driver doesn't support Laravel's built-in schema dump (e.g., `sqlsrv`), the package loads `database/schema/{connection}-schema.sql` after running migrations. Drivers that support built-in schema loading (`mysql`, `mariadb`, `pgsql`, `sqlite`) skip this step.
+
+### Views Files
+
+View definitions can be provided via `database/schema/{connection}-views.sql`. These are loaded for all connections, regardless of driver.
+
+### Seed Files
+
+Seed data can be provided via `database/schema/{connection}-seed.sql`. These are loaded for all connections, regardless of driver.
+
+### Example
 
 ```
 database/
 └── schema/
-    ├── reporting-schema.sql    # Loaded for 'reporting' connection (if driver is sqlsrv)
-    └── reporting-seed.sql      # Optional seed data
-```
-
-## Seed Files
-
-You can provide seed data for any connection via `database/schema/{connection}-seed.sql`. Unlike schema files (which only load for SQL Server), seed files are loaded for all connections.
-
-```
-database/
-└── schema/
-    ├── mysql-seed.sql       # Loaded for 'mysql' connection
-    └── reporting-seed.sql   # Loaded for 'reporting' connection
+    ├── reporting-schema.sql   # DDL for 'reporting' connection (loaded if driver lacks built-in schema support)
+    ├── reporting-views.sql    # View definitions for 'reporting' connection
+    ├── reporting-seed.sql     # Seed data for 'reporting' connection
+    ├── mysql-views.sql        # View definitions for 'mysql' connection
+    └── mysql-seed.sql         # Seed data for 'mysql' connection
 ```
 
 ## Parallel Testing
@@ -172,7 +182,7 @@ database/
 The package fully supports Laravel's parallel testing. When running tests with `--parallel`, the package automatically:
 
 1. **Creates separate test databases** for each parallel process (suffixed with `_test_{token}`)
-2. **Replaces database names** in schema and seed SQL files to target the correct parallel database
+2. **Replaces database names** in schema, views, and seed SQL files to target the correct parallel database
 
 ### Automatic Database Creation
 
@@ -185,7 +195,7 @@ For example, if your `reporting` connection has `database: 'reports_db'`, the pa
 
 ### SQL Server Three-Part Naming in Parallel Tests
 
-SQL Server schema and seed files often use three-part naming: `Database.Schema.Table`. During parallel testing, database names in SQL are automatically replaced with the parallel database name.
+SQL Server schema, views, and seed files often use three-part naming: `Database.Schema.Table`. During parallel testing, database names in SQL are automatically replaced with the parallel database name.
 
 ```sql
 -- database/schema/tcb-schema.sql (for connection named 'tcb')
@@ -198,7 +208,7 @@ CREATE TABLE TCB.dbo.Conferences (
 During parallel testing, this becomes:
 - `TCB.dbo.Conferences` → `TCB_test_1.dbo.Conferences`
 
-MySQL seed files typically use simple table names since the connection already targets the correct database.
+MySQL seed and views files typically use simple table names since the connection already targets the correct database.
 
 ### Running Parallel Tests
 
@@ -217,9 +227,11 @@ Recommended directory structure for multiple connections (assuming `mysql` is de
 ```
 database/
 ├── schema/
-│   ├── reporting-schema.sql     # SQL Server schema (loaded by package for sqlsrv driver)
+│   ├── reporting-schema.sql     # Schema DDL (loaded for drivers without built-in schema support)
+│   ├── reporting-views.sql      # View definitions (loaded for any driver)
 │   ├── reporting-seed.sql       # Seed data (loaded for any driver)
-│   └── analytics-seed.sql       # Seed data for analytics connection
+│   ├── analytics-seed.sql       # Seed data for analytics connection
+│   └── mysql-views.sql          # View definitions for default connection
 └── migrations/
     ├── 2024_01_01_000000_create_users_table.php      # default (mysql) connection
     ├── 2024_01_01_000001_create_posts_table.php      # default (mysql) connection

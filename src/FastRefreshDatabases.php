@@ -9,7 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use JsonException;
-use SplFileInfo;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Process\Process;
 
@@ -40,23 +39,46 @@ trait FastRefreshDatabases
      */
     protected function calculateMigrationChecksum(): string
     {
-        $files = Finder::create()
-            ->in(database_path('migrations'))
-            ->name('*.php')
-            ->ignoreDotFiles(true)
-            ->ignoreVCS(true)
-            ->files();
+        $checksumData = [];
 
-        $migrations = array_map(static fn (SplFileInfo $fileInfo): array => [$fileInfo->getMTime(), $fileInfo->getPath()], iterator_to_array($files));
+        foreach ($this->getMigrationPaths() as $path) {
+            if (!is_dir($path)) {
+                continue;
+            }
 
-        $migrations = array_values($migrations);
+            $files = Finder::create()
+                ->in($path)
+                ->name('*.php')
+                ->ignoreDotFiles(true)
+                ->ignoreVCS(true)
+                ->files();
+
+            foreach ($files as $file) {
+                $checksumData[] = [$file->getMTime(), $file->getRealPath()];
+            }
+        }
+
+        $schemaPath = database_path('schema');
+
+        if (is_dir($schemaPath)) {
+            $schemaFiles = Finder::create()
+                ->in($schemaPath)
+                ->name('*.sql')
+                ->ignoreDotFiles(true)
+                ->ignoreVCS(true)
+                ->files();
+
+            foreach ($schemaFiles as $file) {
+                $checksumData[] = [$file->getMTime(), $file->getRealPath()];
+            }
+        }
 
         $checkBranch = new Process(['git', 'branch', '--show-current']);
         $checkBranch->run();
 
-        $migrations['gitBranch'] = trim($checkBranch->getOutput());
+        $checksumData['gitBranch'] = trim($checkBranch->getOutput());
 
-        return hash('sha256', json_encode($migrations, JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode($checksumData, JSON_THROW_ON_ERROR));
     }
 
     protected function getCachedMigrationChecksum(): ?string

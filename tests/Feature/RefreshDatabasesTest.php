@@ -183,3 +183,95 @@ test('does nothing when seed file does not exist', function () {
 
     expect(Schema::connection('default')->hasTable('default_table_one'))->toBeTrue();
 });
+
+test('migrateInMemoryConnections only migrates in memory connections', function () {
+    $class = new class
+    {
+        use RefreshDatabases;
+
+        public array $migratedConnections = [];
+
+        protected $migrationPaths = [
+            'memory_conn' => '/fake/path',
+            'disk_conn' => '/fake/path2',
+        ];
+
+        public function runIt()
+        {
+            $this->migrateInMemoryConnections();
+        }
+
+        protected function artisan($command, $parameters = [])
+        {
+            $this->migratedConnections[] = $parameters['--database'];
+        }
+
+        protected function loadSqlFile(string $connection, string $type): void {}
+
+        protected function supportsSchemaLoading(string $connection): bool
+        {
+            return true;
+        }
+
+        protected function updateLocalCacheOfInMemoryDatabases(): void {}
+    };
+
+    config([
+        'database.connections.memory_conn' => ['driver' => 'sqlite', 'database' => ':memory:'],
+        'database.connections.disk_conn' => ['driver' => 'mysql', 'database' => 'real_db'],
+    ]);
+
+    $class->runIt();
+
+    expect($class->migratedConnections)->toBe(['memory_conn']);
+});
+
+test('migrateInMemoryConnections loads schema file for unsupported drivers', function () {
+    $class = new class
+    {
+        use RefreshDatabases;
+
+        public array $migratedConnections = [];
+
+        public array $loadedSqlFiles = [];
+
+        protected $migrationPaths = [
+            'memory_sqlsrv' => '/fake/path',
+        ];
+
+        public function runIt()
+        {
+            $this->migrateInMemoryConnections();
+        }
+
+        protected function artisan($command, $parameters = [])
+        {
+            $this->migratedConnections[] = $parameters['--database'];
+        }
+
+        protected function loadSqlFile(string $connection, string $type): void
+        {
+            $this->loadedSqlFiles[] = [$connection, $type];
+        }
+
+        protected function supportsSchemaLoading(string $connection): bool
+        {
+            return false;
+        }
+
+        protected function updateLocalCacheOfInMemoryDatabases(): void {}
+    };
+
+    config([
+        'database.connections.memory_sqlsrv' => ['driver' => 'sqlsrv', 'database' => ':memory:'],
+    ]);
+
+    $class->runIt();
+
+    expect($class->migratedConnections)->toBe(['memory_sqlsrv'])
+        ->and($class->loadedSqlFiles)->toBe([
+            ['memory_sqlsrv', 'schema'],
+            ['memory_sqlsrv', 'views'],
+            ['memory_sqlsrv', 'seed'],
+        ]);
+});

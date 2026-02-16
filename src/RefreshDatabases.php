@@ -212,6 +212,35 @@ trait RefreshDatabases
         $this->beginDatabaseTransaction();
     }
 
+    protected function migrateInMemoryConnections(): void
+    {
+        foreach ($this->getMigrationPaths() as $connection => $path) {
+            if (config("database.connections.{$connection}.database") !== ':memory:') {
+                continue;
+            }
+
+            $this->artisan('migrate:fresh', array_merge(
+                [
+                    '--database' => $connection,
+                    '--path' => $path,
+                    '--realpath' => true,
+                ],
+                $this->migrateFreshUsing()
+            ));
+
+            if (!$this->supportsSchemaLoading($connection)) {
+                $this->loadSqlFile($connection, 'schema');
+            }
+
+            $this->loadSqlFile($connection, 'views');
+            $this->loadSqlFile($connection, 'seed');
+        }
+
+        resolve(Kernel::class)->setArtisan(null);
+
+        $this->updateLocalCacheOfInMemoryDatabases();
+    }
+
     protected function migrateConnections(): void
     {
         foreach ($this->getMigrationPaths() as $connection => $path) {

@@ -26,6 +26,8 @@ trait FastRefreshDatabases
                 $this->migrateConnections();
 
                 $this->storeMigrationChecksum($currentChecksum);
+            } elseif ($this->usingInMemoryDatabase()) {
+                $this->migrateInMemoryConnections();
             }
 
             RefreshDatabaseState::$migrated = true;

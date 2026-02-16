@@ -281,6 +281,55 @@ test('checksum includes schema sql files', function () {
     expect($checksumAfter)->not()->toBe($checksumBefore);
 });
 
+test('migrates in memory connections when checksums match and database is in memory', function () {
+    FastRefreshDatabaseState::$cachedChecksum = '123';
+    FastRefreshDatabaseState::$currentChecksum = '123';
+    RefreshDatabaseState::$migrated = false;
+
+    $class = new class
+    {
+        use FastRefreshDatabases;
+
+        public static $migrateConnectionsCalled = 0;
+
+        public static $migrateInMemoryCalled = 0;
+
+        protected $connectionsToTransact = ['default'];
+
+        public function runIt()
+        {
+            $this->setMigrationPaths();
+            $this->refreshTestDatabase();
+        }
+
+        protected function migrateConnections()
+        {
+            self::$migrateConnectionsCalled++;
+        }
+
+        protected function migrateInMemoryConnections()
+        {
+            self::$migrateInMemoryCalled++;
+        }
+
+        protected function usingInMemoryDatabase(): bool
+        {
+            return true;
+        }
+
+        protected function storeMigrationChecksum(string $checksum) {}
+
+        protected function beginDatabaseTransaction() {}
+    };
+
+    $class->runIt();
+
+    expect($class::$migrateConnectionsCalled)->toBe(0)
+        ->and($class::$migrateInMemoryCalled)->toBe(1);
+
+    RefreshDatabaseState::$migrated = true;
+});
+
 test('checksum handles missing migration paths gracefully', function () {
     $class = new class
     {
@@ -288,7 +337,6 @@ test('checksum handles missing migration paths gracefully', function () {
 
         public static $checksum = '';
 
-        /** @var array<string, string> */
         protected $migrationPaths = [];
 
         public function runIt()
@@ -301,7 +349,6 @@ test('checksum handles missing migration paths gracefully', function () {
         }
     };
 
-    // Should not throw an exception
     $class->runIt();
 
     expect($class::$checksum)->not()->toBe('');

@@ -33,6 +33,6 @@ return RectorConfig::configure()
         SetList::CODE_QUALITY,
         SetList::STRICT_BOOLEANS,
         SetList::RECTOR_PRESET,
-        LaravelLevelSetList::UP_TO_LARAVEL_110,
+        LaravelLevelSetList::UP_TO_LARAVEL_130,
         LaravelSetList::LARAVEL_CODE_QUALITY,
     ]);

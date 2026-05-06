@@ -244,6 +244,10 @@ trait RefreshDatabases
     protected function migrateConnections(): void
     {
         foreach ($this->getMigrationPaths() as $connection => $path) {
+            if ($this->supportsSchemaLoading($connection)) {
+                DB::connection($connection)->getSchemaBuilder()->dropAllTables();
+            }
+
             $this->artisan('migrate:fresh', array_merge(
                 [
                     '--database' => $connection,

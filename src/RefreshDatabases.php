@@ -287,13 +287,21 @@ trait RefreshDatabases
 
         $sql = $this->replaceParallelDatabaseNames(File::get($path));
 
-        $statements = array_filter(
-            explode(';', $sql),
-            static fn (string $s): bool => trim($s) !== ''
-        );
-
-        foreach ($statements as $statement) {
-            DB::connection($connection)->statement(trim($statement));
+        foreach ($this->splitSqlStatements($sql) as $statement) {
+            DB::connection($connection)->statement($statement);
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function splitSqlStatements(string $sql): array
+    {
+        $statements = preg_split("/;(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)/", $sql) ?: [];
+
+        return array_values(array_filter(
+            array_map('trim', $statements),
+            static fn (string $statement): bool => $statement !== ''
+        ));
     }
 }

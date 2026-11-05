@@ -10,25 +10,25 @@ use Mahbub\RefreshDatabases\RefreshDatabases;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\DefaultOne;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
 
-uses(RefreshDatabases::class);
+pest()->use(RefreshDatabases::class);
 
-beforeAll(function () {
+beforeAll(function (): void {
     RefreshDatabaseState::$migrated = false;
 });
 
-test('can refresh default connection', function () {
+test('can refresh default connection', function (): void {
     DefaultOne::factory()->create();
 
     expect(DefaultOne::count())->toBe(1);
 });
 
-test('can refresh non default database connections', function () {
+test('can refresh non default database connections', function (): void {
     OtherOne::factory()->create();
 
     expect(OtherOne::count())->toBe(1);
 });
 
-test('can refresh multiple database connections', function () {
+test('can refresh multiple database connections', function (): void {
     DefaultOne::factory()->create();
     OtherOne::factory()->create();
 
@@ -36,21 +36,21 @@ test('can refresh multiple database connections', function () {
     expect(OtherOne::count())->toBe(1);
 });
 
-test('it can infer migrationPaths from connectionsToTransact', function () {
+test('it can infer migrationPaths from connectionsToTransact', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['default', 'other'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
         }
 
-        public function getMigrationPaths()
+        public function resolvedMigrationPaths(): array
         {
-            return $this->migrationPaths;
+            return $this->getMigrationPaths();
         }
 
         public function getConnectionsToTransact()
@@ -61,7 +61,7 @@ test('it can infer migrationPaths from connectionsToTransact', function () {
 
     $class->runIt();
 
-    expect($class->getMigrationPaths())
+    expect($class->resolvedMigrationPaths())
         ->toBe([
             'default' => database_path('migrations'),
             'other' => database_path('migrations/other'),
@@ -69,16 +69,16 @@ test('it can infer migrationPaths from connectionsToTransact', function () {
 
     expect($class->getConnectionsToTransact())
         ->toBe(['default', 'other']);
-});
+})->group('need_review');
 
-test('it throws exception if connection is not configured', function () {
+test('it throws exception if connection is not configured', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['default', 'nonexistent'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
         }
@@ -88,74 +88,90 @@ test('it throws exception if connection is not configured', function () {
         ->toThrow(RuntimeException::class, 'Database connection [nonexistent] is not defined.');
 });
 
-test('infers default migration path for default connection if connectionsToTransact is missing', function () {
+test('infers default migration path for default connection if connectionsToTransact is missing', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
-        public function runIt()
+        public function runIt(): void
         {
-            $this->setConnectionsToTransact();
             $this->setMigrationPaths();
         }
 
-        public function getMigrationPaths()
+        public function resolvedMigrationPaths(): array
         {
-            return $this->migrationPaths;
-        }
-
-        public function getConnectionsToTransact()
-        {
-            return $this->connectionsToTransact;
+            return $this->getMigrationPaths();
         }
     };
 
     $class->runIt();
 
-    expect($class->getConnectionsToTransact())
-        ->toBe([config('database.default')]);
-
-    expect($class->getMigrationPaths())
+    expect($class->resolvedMigrationPaths())
         ->toBe([
             config('database.default') => database_path('migrations'),
         ]);
-});
+})->group('need_review');
 
-test('it uses migrationPaths property if defined', function () {
+test('adds no migrationPaths or connectionsToTransact to a test case that declares neither', function (): void {
+    // PHP 8.2+ deprecates creating undeclared properties, so the resolved state must stay inside the trait.
+    $class = new class
+    {
+        use RefreshDatabases;
+
+        public function runIt(): void
+        {
+            $this->beforeRefreshingDatabase();
+        }
+    };
+
+    $class->runIt();
+
+    expect($class)
+        ->not->toHaveProperty('migrationPaths')
+        ->not->toHaveProperty('connectionsToTransact');
+})->group('need_review');
+
+test('it uses the paths migrationPaths() is overridden with', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['default', 'other'];
 
-        protected $migrationPaths = [
-            'other' => '/custom/path/for/other',
-        ];
-
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
         }
 
-        public function getMigrationPaths()
+        public function resolvedMigrationPaths(): array
         {
-            return $this->migrationPaths;
+            return $this->getMigrationPaths();
+        }
+
+        /**
+         * @return array<string, string>
+         */
+        protected function migrationPaths(): array
+        {
+            return ['other' => '/custom/path/for/other'];
         }
     };
     $class->runIt();
 
-    expect($class->getMigrationPaths())
+    expect($class->resolvedMigrationPaths())
         ->toBe([
             'default' => database_path('migrations'),
             'other' => '/custom/path/for/other',
         ]);
-});
+})->group('need_review');
 
-test('can load seed file and execute statements', function () {
+test('can load seed file and execute statements', function (): void {
     $seedPath = database_path('schema/default-seed.sql');
     $seedContent = "INSERT INTO default_table_one (id, name) VALUES (99, 'seed_test');";
 
     File::put($seedPath, $seedContent);
+
+    rollBackTestTransactions();
 
     RefreshDatabaseState::$migrated = false;
 
@@ -168,14 +184,15 @@ test('can load seed file and execute statements', function () {
 
     File::delete($seedPath);
 
-    expect($record)->not->toBeNull()
-        ->and($record->name)->toBe('seed_test');
-});
+    expect($record)->name->toBe('seed_test');
+})->group('need_review');
 
-test('does nothing when seed file does not exist', function () {
+test('does nothing when seed file does not exist', function (): void {
     $seedPath = database_path('schema/default-seed.sql');
 
     expect(File::exists($seedPath))->toBeFalse();
+
+    rollBackTestTransactions();
 
     RefreshDatabaseState::$migrated = false;
 
@@ -184,24 +201,27 @@ test('does nothing when seed file does not exist', function () {
     expect(Schema::connection('default')->hasTable('default_table_one'))->toBeTrue();
 });
 
-test('migrateInMemoryConnections only migrates in memory connections', function () {
+test('migrateInMemoryConnections only migrates in memory connections', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         public array $migratedConnections = [];
 
-        protected $migrationPaths = [
-            'memory_conn' => '/fake/path',
-            'disk_conn' => '/fake/path2',
-        ];
-
-        public function runIt()
+        public function runIt(): void
         {
             $this->migrateInMemoryConnections();
         }
 
-        protected function artisan($command, $parameters = [])
+        protected function getMigrationPaths(): array
+        {
+            return [
+                'memory_conn' => '/fake/path',
+                'disk_conn' => '/fake/path2',
+            ];
+        }
+
+        protected function artisan($command, array $parameters = []): void
         {
             $this->migratedConnections[] = $parameters['--database'];
         }
@@ -224,9 +244,9 @@ test('migrateInMemoryConnections only migrates in memory connections', function 
     $class->runIt();
 
     expect($class->migratedConnections)->toBe(['memory_conn']);
-});
+})->group('need_review');
 
-test('migrateInMemoryConnections loads schema file for unsupported drivers', function () {
+test('migrateInMemoryConnections loads schema file for unsupported drivers', function (): void {
     $class = new class
     {
         use RefreshDatabases;
@@ -235,16 +255,19 @@ test('migrateInMemoryConnections loads schema file for unsupported drivers', fun
 
         public array $loadedSqlFiles = [];
 
-        protected $migrationPaths = [
-            'memory_sqlsrv' => '/fake/path',
-        ];
-
-        public function runIt()
+        public function runIt(): void
         {
             $this->migrateInMemoryConnections();
         }
 
-        protected function artisan($command, $parameters = [])
+        protected function getMigrationPaths(): array
+        {
+            return [
+                'memory_sqlsrv' => '/fake/path',
+            ];
+        }
+
+        protected function artisan($command, array $parameters = []): void
         {
             $this->migratedConnections[] = $parameters['--database'];
         }
@@ -274,4 +297,4 @@ test('migrateInMemoryConnections loads schema file for unsupported drivers', fun
             ['memory_sqlsrv', 'views'],
             ['memory_sqlsrv', 'seed'],
         ]);
-});
+})->group('need_review');

@@ -9,19 +9,19 @@ use Illuminate\Support\Facades\Schema;
 use Mahbub\RefreshDatabases\RefreshDatabases;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\Sqlsrv\SqlsrvOne;
 
-uses(RefreshDatabases::class);
+pest()->use(RefreshDatabases::class);
 
-beforeAll(function () {
+beforeAll(function (): void {
     RefreshDatabaseState::$migrated = false;
 });
 
-test('can refresh sqlsrv connection', function () {
+test('can refresh sqlsrv connection', function (): void {
     SqlsrvOne::factory()->create();
 
     expect(SqlsrvOne::count())->toBe(1);
 });
 
-test('rollback works between tests', function () {
+test('rollback works between tests', function (): void {
     expect(SqlsrvOne::count())->toBe(0);
 
     SqlsrvOne::factory()->count(3)->create();
@@ -29,11 +29,13 @@ test('rollback works between tests', function () {
     expect(SqlsrvOne::count())->toBe(3);
 });
 
-test('load sqlsrv schema file when it exists', function () {
+test('load sqlsrv schema file when it exists', function (): void {
     $schemaPath = database_path('schema/sqlsrv-schema.sql');
     $schemaContent = 'CREATE TABLE sqlsrv_schema_test (id INT PRIMARY KEY, name NVARCHAR(255));';
 
     File::put($schemaPath, $schemaContent);
+
+    rollBackTestTransactions();
 
     RefreshDatabaseState::$migrated = false;
 
@@ -47,11 +49,13 @@ test('load sqlsrv schema file when it exists', function () {
     expect($tableExists)->toBeTrue();
 });
 
-test('load seed file when it exists', function () {
+test('load seed file when it exists', function (): void {
     $seedPath = database_path('schema/sqlsrv-seed.sql');
-    $seedContent = "INSERT INTO sqlsrv_table_one (name, created_at, updated_at) VALUES ('seeded_record', GETDATE(), GETDATE())";
+    $seedContent = "INSERT INTO sqlsrv_table_one (name, created_at, updated_at) VALUES ('seeded_record', '2024-01-01', '2024-01-01')";
 
     File::put($seedPath, $seedContent);
+
+    rollBackTestTransactions();
 
     RefreshDatabaseState::$migrated = false;
 
@@ -64,6 +68,5 @@ test('load seed file when it exists', function () {
 
     File::delete($seedPath);
 
-    expect($record)->not->toBeNull()
-        ->and($record->name)->toBe('seeded_record');
-});
+    expect($record)->name->toBe('seeded_record');
+})->group('need_review');

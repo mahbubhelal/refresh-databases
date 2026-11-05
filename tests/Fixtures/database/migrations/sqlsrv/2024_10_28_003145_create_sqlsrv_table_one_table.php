@@ -10,15 +10,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection('sqlsrv')->create('sqlsrv_table_one', function (Blueprint $table) {
+        Schema::connection('sqlsrv')->create('sqlsrv_table_one', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->timestamps();
         });
-    }
-
-    public function down(): void
-    {
-        Schema::connection('sqlsrv')->dropIfExists('sqlsrv_table_one');
     }
 };

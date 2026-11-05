@@ -7,6 +7,7 @@ namespace Mahbub\RefreshDatabases;
 use Illuminate\Foundation\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\ParallelTesting;
@@ -16,36 +17,49 @@ trait RefreshDatabases
 {
     use RefreshDatabase;
 
+    private const string IN_MEMORY_DATABASE = ':memory:';
+
+    private const string SEMICOLON_OUTSIDE_QUOTES = "/;(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)/";
+
     /** @var array<string, string> */
     protected static array $databaseNameMap = [];
 
     /** @var array<string, string> */
     protected static array $originalDatabaseNames = [];
 
+    /** @var array<string, string> */
+    private array $resolvedMigrationPaths = [];
+
     public function replaceParallelDatabaseNames(string $sql): string
     {
         foreach (static::$databaseNameMap as $original => $parallel) {
-            $sql = preg_replace(
-                '/\b' . preg_quote($original, '/') . '\.dbo\./i',
-                $parallel . '.dbo.',
-                $sql
-            ) ?? $sql;
-
-            $sql = preg_replace(
-                '/\b' . preg_quote($original, '/') . '\.(\w)/i',
-                $parallel . '.$1',
-                $sql
-            ) ?? $sql;
+            $sql = preg_replace('/\b' . preg_quote($original, '/') . '\.(\w)/i', $parallel . '.$1', $sql)
+                ?? throw new RuntimeException("Could not replace the database name [{$original}] in the SQL file: " . preg_last_error_msg());
         }
 
         return $sql;
     }
 
+    /**
+     * @return list<string>
+     */
+    public function splitSqlStatements(string $sql): array
+    {
+        $statements = preg_split(self::SEMICOLON_OUTSIDE_QUOTES, $sql);
+
+        if ($statements === false) {
+            throw new RuntimeException('Could not split the SQL file into statements: ' . preg_last_error_msg());
+        }
+
+        return array_values(array_filter(
+            array_map(trim(...), $statements),
+            static fn (string $statement): bool => $statement !== ''
+        ));
+    }
+
     protected function beforeRefreshingDatabase(): void
     {
         $this->beforeRefreshingDatabases();
-
-        $this->setConnectionsToTransact();
 
         $this->configureParallelDatabases();
 
@@ -61,7 +75,7 @@ trait RefreshDatabases
         }
 
         /** @var array<string> */
-        $connections = $this->connectionsToTransact; // @phpstan-ignore property.notFound
+        $connections = $this->connectionsToTransact();
 
         foreach ($connections as $connection) {
             $this->configureParallelDatabase($connection, $token);
@@ -73,22 +87,22 @@ trait RefreshDatabases
         $configKey = "database.connections.{$connection}.database";
 
         if (array_key_exists($connection, static::$originalDatabaseNames)) {
-            config([$configKey => static::$originalDatabaseNames[$connection] . "_test_{$token}"]);
+            Config::set($configKey, $this->parallelDatabaseName(static::$originalDatabaseNames[$connection], $token));
 
             return;
         }
 
-        $baseDatabase = config($configKey);
+        $baseDatabase = Config::string($configKey);
 
-        if (!is_string($baseDatabase) || $baseDatabase === ':memory:') {
+        if ($baseDatabase === self::IN_MEMORY_DATABASE) {
             return;
         }
 
         static::$originalDatabaseNames[$connection] = $baseDatabase;
 
-        $parallelDatabase = "{$baseDatabase}_test_{$token}";
+        $parallelDatabase = $this->parallelDatabaseName($baseDatabase, $token);
 
-        config([$configKey => $parallelDatabase]);
+        Config::set($configKey, $parallelDatabase);
 
         $this->ensureParallelDatabaseExists($connection, $parallelDatabase);
 
@@ -97,7 +111,7 @@ trait RefreshDatabases
 
     protected function ensureParallelDatabaseExists(string $connection, string $database): void
     {
-        $driver = config("database.connections.{$connection}.driver");
+        $driver = Config::string("database.connections.{$connection}.driver");
 
         if ($driver === 'mysql') {
             $this->createMysqlDatabase($connection, $database);
@@ -108,25 +122,23 @@ trait RefreshDatabases
 
     protected function createMysqlDatabase(string $connection, string $database): void
     {
-        /** @var string $charset */
-        $charset = config("database.connections.{$connection}.charset");
-        /** @var string $collation */
-        $collation = config("database.connections.{$connection}.collation");
+        $charset = Config::string("database.connections.{$connection}.charset");
+        $collation = Config::string("database.connections.{$connection}.collation");
 
-        config(["database.connections.{$connection}.database" => null]);
+        Config::set("database.connections.{$connection}.database");
         DB::purge($connection);
 
         DB::connection($connection)->statement(
             "CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET {$charset} COLLATE {$collation}"
         );
 
-        config(["database.connections.{$connection}.database" => $database]);
+        Config::set("database.connections.{$connection}.database", $database);
         DB::purge($connection);
     }
 
     protected function createSqlServerDatabase(string $connection, string $database): void
     {
-        config(["database.connections.{$connection}.database" => null]);
+        Config::set("database.connections.{$connection}.database");
         DB::purge($connection);
 
         $exists = DB::connection($connection)->selectOne(
@@ -138,7 +150,7 @@ trait RefreshDatabases
             DB::connection($connection)->statement("CREATE DATABASE [{$database}]");
         }
 
-        config(["database.connections.{$connection}.database" => $database]);
+        Config::set("database.connections.{$connection}.database", $database);
         DB::purge($connection);
     }
 
@@ -149,33 +161,29 @@ trait RefreshDatabases
 
     protected function beforeRefreshingDatabases(): void {}
 
-    protected function afterRefreshingDatabases(): void {}
-
-    protected function setConnectionsToTransact(): void
+    /**
+     * @return array<string, string>
+     */
+    protected function migrationPaths(): array
     {
-        if (property_exists($this, 'connectionsToTransact')) { // @phpstan-ignore function.impossibleType
-            return;
-        }
-
-        $defaultConnection = config('database.default');
-
-        $this->connectionsToTransact = [$defaultConnection]; // @phpstan-ignore property.notFound
+        return [];
     }
+
+    protected function afterRefreshingDatabases(): void {}
 
     protected function setMigrationPaths(): void
     {
-        /** @var array<string, string> */
-        $migrationPaths = $this->migrationPaths ?? []; // @phpstan-ignore property.notFound
+        $migrationPaths = $this->migrationPaths();
 
         $paths = [];
         $migrationPath = database_path('migrations');
-        $defaultConnection = config('database.default');
+        $defaultConnection = Config::string('database.default');
 
         /** @var array<string> */
-        $connections = $this->connectionsToTransact; // @phpstan-ignore property.notFound
+        $connections = $this->connectionsToTransact();
 
         foreach ($connections as $connection) {
-            if (!is_array(config("database.connections.{$connection}"))) {
+            if (!Config::has("database.connections.{$connection}")) {
                 throw new RuntimeException("Database connection [{$connection}] is not defined.");
             }
 
@@ -190,7 +198,7 @@ trait RefreshDatabases
                 : $migrationPath . '/' . $connection;
         }
 
-        $this->migrationPaths = $paths; // @phpstan-ignore property.notFound
+        $this->resolvedMigrationPaths = $paths;
     }
 
     /**
@@ -198,7 +206,7 @@ trait RefreshDatabases
      */
     protected function getMigrationPaths(): array
     {
-        return $this->migrationPaths; // @phpstan-ignore property.notFound, return.type
+        return $this->resolvedMigrationPaths;
     }
 
     protected function refreshTestDatabase(): void
@@ -215,25 +223,11 @@ trait RefreshDatabases
     protected function migrateInMemoryConnections(): void
     {
         foreach ($this->getMigrationPaths() as $connection => $path) {
-            if (config("database.connections.{$connection}.database") !== ':memory:') {
+            if (!$this->isInMemoryConnection($connection)) {
                 continue;
             }
 
-            $this->artisan('migrate:fresh', array_merge(
-                [
-                    '--database' => $connection,
-                    '--path' => $path,
-                    '--realpath' => true,
-                ],
-                $this->migrateFreshUsing()
-            ));
-
-            if (!$this->supportsSchemaLoading($connection)) {
-                $this->loadSqlFile($connection, 'schema');
-            }
-
-            $this->loadSqlFile($connection, 'views');
-            $this->loadSqlFile($connection, 'seed');
+            $this->migrateConnection($connection, $path);
         }
 
         resolve(Kernel::class)->setArtisan(null);
@@ -248,21 +242,7 @@ trait RefreshDatabases
                 DB::connection($connection)->getSchemaBuilder()->dropAllTables();
             }
 
-            $this->artisan('migrate:fresh', array_merge(
-                [
-                    '--database' => $connection,
-                    '--path' => $path,
-                    '--realpath' => true,
-                ],
-                $this->migrateFreshUsing()
-            ));
-
-            if (!$this->supportsSchemaLoading($connection)) {
-                $this->loadSqlFile($connection, 'schema');
-            }
-
-            $this->loadSqlFile($connection, 'views');
-            $this->loadSqlFile($connection, 'seed');
+            $this->migrateConnection($connection, $path);
         }
 
         resolve(Kernel::class)->setArtisan(null);
@@ -272,7 +252,7 @@ trait RefreshDatabases
 
     protected function supportsSchemaLoading(string $connection): bool
     {
-        $driver = config("database.connections.{$connection}.driver");
+        $driver = Config::string("database.connections.{$connection}.driver");
 
         return in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlite'], true);
     }
@@ -292,16 +272,32 @@ trait RefreshDatabases
         }
     }
 
-    /**
-     * @return list<string>
-     */
-    public function splitSqlStatements(string $sql): array
+    private function migrateConnection(string $connection, string $path): void
     {
-        $statements = preg_split("/;(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)/", $sql) ?: [];
-
-        return array_values(array_filter(
-            array_map('trim', $statements),
-            static fn (string $statement): bool => $statement !== ''
+        $this->artisan('migrate:fresh', array_merge(
+            [
+                '--database' => $connection,
+                '--path' => $path,
+                '--realpath' => true,
+            ],
+            $this->migrateFreshUsing()
         ));
+
+        if (!$this->supportsSchemaLoading($connection)) {
+            $this->loadSqlFile($connection, 'schema');
+        }
+
+        $this->loadSqlFile($connection, 'views');
+        $this->loadSqlFile($connection, 'seed');
+    }
+
+    private function isInMemoryConnection(string $connection): bool
+    {
+        return Config::get("database.connections.{$connection}.database") === self::IN_MEMORY_DATABASE;
+    }
+
+    private function parallelDatabaseName(string $baseDatabase, string $token): string
+    {
+        return "{$baseDatabase}_test_{$token}";
     }
 }

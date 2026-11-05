@@ -1,9 +1,33 @@
 includes:
     - ./vendor/larastan/larastan/extension.neon
     - ./vendor/phpstan/phpstan-strict-rules/rules.neon
+    - ./vendor/pestphp/pest-plugin-phpstan/extension.neon
 
 parameters:
     level: max
     paths:
         - src/
-        - tests/Fixtures/FakeTestCase.php
+        - tests/
+    excludePaths:
+        # These tests drive the traits through anonymous classes that stub what a TestCase provides;
+        # the traits themselves are analysed in a real TestCase through tests/Fixtures/FakeTestCase.php.
+        - tests/Feature/FastRefreshDatabasesTest.php
+        - tests/Feature/ParallelDatabasesTest.php
+        - tests/Feature/RefreshDatabasesTest.php
+    ignoreErrors:
+        # Pest's higher-order expectations (`expect($x)->key->toBe()`) and untyped dataset
+        # arguments are `mixed` to PHPStan, so these identifiers are pure noise in test code.
+        -
+            identifiers:
+                - argument.templateType
+                - argument.type
+                - method.nonObject
+                - offsetAccess.nonOffsetAccessible
+                - property.dynamicName
+                - property.nonObject
+            paths:
+                - tests/*
+            reportUnmatched: false
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            reportUnmatched: false

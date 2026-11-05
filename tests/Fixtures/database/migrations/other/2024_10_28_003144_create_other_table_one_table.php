@@ -10,15 +10,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection('other')->create('other_table_one', function (Blueprint $table) {
+        Schema::connection('other')->create('other_table_one', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->timestamps();
         });
-    }
-
-    public function down(): void
-    {
-        Schema::connection('other')->dropIfExists('other_table_one');
     }
 };

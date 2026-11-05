@@ -1,4 +1,4 @@
-FROM php:8.3.29-cli-alpine3.23
+FROM php:8.5.12-cli-alpine3.23
 
 RUN apk update && apk add --no-cache \
     $PHPIZE_DEPS zip unzip mysql-client unixodbc-dev
@@ -21,6 +21,8 @@ COPY docker/test-mysql.cnf /etc/my.cnf.d/test-mysql.cnf
 RUN docker-php-ext-install mysqli pdo_mysql
 
 RUN pecl install pcov && docker-php-ext-enable pcov
+
+RUN echo "memory_limit=512M" > "$PHP_INI_DIR/conf.d/memory-limit.ini"
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

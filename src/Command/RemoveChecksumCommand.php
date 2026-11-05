@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Mahbub\RefreshDatabases\Command;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Finder\Finder;
 
+#[Description('Remove the checksum file from storage')]
+#[Signature('refresh-databases:remove-checksum')]
 final class RemoveChecksumCommand extends Command
 {
-    protected $signature = 'refresh-databases:remove-checksum';
-
-    protected $description = 'Remove the checksum file from storage';
-
     public function handle(): int
     {
         $files = array_keys(iterator_to_array(
@@ -28,13 +28,13 @@ final class RemoveChecksumCommand extends Command
         if ($files === []) {
             $this->warn('Checksum file not present.');
 
-            return 1;
+            return self::FAILURE;
         }
 
         File::delete($files);
 
         $this->info('Checksum file has been removed.');
 
-        return 0;
+        return self::SUCCESS;
     }
 }

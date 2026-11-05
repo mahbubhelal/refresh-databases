@@ -30,7 +30,7 @@ Commands:
     rector [args]      Run Rector in the container
     phpstan [args]     Run PHPStan in the container
     pest [args]        Run Pest tests in the container
-    testing            Start services for test environment (test-mysql, local)
+    testing            Start services for test environment (test-mysql, test-sqlsrv)
     reup               Restart container (down + up)
     buildup            Build and start container (build + up)
     ra                 Restart and attach (reup + attach)
@@ -135,7 +135,7 @@ cmd_pest() {
 
 cmd_testing() {
     export HOST_UID HOST_GID
-    docker compose up -d test-mysql
+    docker compose up -d test-mysql test-sqlsrv
 }
 
 cmd_reup() {

@@ -24,8 +24,6 @@ services:
         environment:
             - MYSQL_ALLOW_EMPTY_PASSWORD=yes
             - MYSQL_DATABASE=laravel
-        ports:
-            - 13306:3306
 
     test-sqlsrv:
         container_name: refresh-databases_test-sqlsrv
@@ -34,5 +32,3 @@ services:
             - ACCEPT_EULA=Y
             - MSSQL_SA_PASSWORD=Strong@Passw0rd
             - MSSQL_PID=Developer
-        ports:
-            - 11433:1433

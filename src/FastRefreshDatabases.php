@@ -44,48 +44,25 @@ trait FastRefreshDatabases
         $checksumData = [];
 
         foreach ($this->getMigrationPaths() as $path) {
-            if (!is_dir($path)) {
-                continue;
-            }
-
-            $files = Finder::create()
-                ->in($path)
-                ->name('*.php')
-                ->ignoreDotFiles(true)
-                ->ignoreVCS(true)
-                ->files();
-
-            foreach ($files as $file) {
-                $checksumData[] = [$file->getMTime(), $file->getRealPath()];
-            }
+            array_push($checksumData, ...$this->fileFingerprints($path, '*.php'));
         }
 
-        $schemaPath = database_path('schema');
+        array_push($checksumData, ...$this->fileFingerprints(database_path('schema'), '*.sql'));
 
-        if (is_dir($schemaPath)) {
-            $schemaFiles = Finder::create()
-                ->in($schemaPath)
-                ->name('*.sql')
-                ->ignoreDotFiles(true)
-                ->ignoreVCS(true)
-                ->files();
-
-            foreach ($schemaFiles as $file) {
-                $checksumData[] = [$file->getMTime(), $file->getRealPath()];
-            }
-        }
-
-        $checkBranch = new Process(['git', 'branch', '--show-current']);
-        $checkBranch->run();
-
-        $checksumData['gitBranch'] = trim($checkBranch->getOutput());
+        $checksumData['gitBranch'] = $this->currentGitBranch();
 
         return hash('sha256', json_encode($checksumData, JSON_THROW_ON_ERROR));
     }
 
     protected function getCachedMigrationChecksum(): ?string
     {
-        return rescue(fn (): string => File::get($this->getMigrationChecksumFile()), null, false);
+        $checksumFile = $this->getMigrationChecksumFile();
+
+        if (!File::exists($checksumFile)) {
+            return null;
+        }
+
+        return File::get($checksumFile);
     }
 
     protected function storeMigrationChecksum(string $checksum): void
@@ -100,5 +77,38 @@ trait FastRefreshDatabases
         $databaseNameSlug = Str::slug($connection->getDatabaseName());
 
         return storage_path("app/migration-checksum_{$databaseNameSlug}.txt");
+    }
+
+    /**
+     * @return list<array{int|false, string|false}>
+     */
+    private function fileFingerprints(string $directory, string $pattern): array
+    {
+        if (!is_dir($directory)) {
+            return [];
+        }
+
+        $files = Finder::create()
+            ->in($directory)
+            ->name($pattern)
+            ->ignoreDotFiles(true)
+            ->ignoreVCS(true)
+            ->files();
+
+        $fingerprints = [];
+
+        foreach ($files as $file) {
+            $fingerprints[] = [$file->getMTime(), $file->getRealPath()];
+        }
+
+        return $fingerprints;
+    }
+
+    private function currentGitBranch(): string
+    {
+        $gitBranch = new Process(['git', 'branch', '--show-current']);
+        $gitBranch->run();
+
+        return trim($gitBranch->getOutput());
     }
 }

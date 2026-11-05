@@ -3,33 +3,31 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Mahbub\RefreshDatabases\FastRefreshDatabases;
 use Mahbub\RefreshDatabases\FastRefreshDatabaseState;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\DefaultOne;
 use Mahbub\RefreshDatabases\Tests\Fixtures\Models\Other\OtherOne;
 
-uses(FastRefreshDatabases::class);
+pest()->use(FastRefreshDatabases::class);
 
-beforeAll(function () {
+beforeAll(function (): void {
     RefreshDatabaseState::$migrated = false;
 });
 
-test('can refresh default connection', function () {
+test('can refresh default connection', function (): void {
     DefaultOne::factory()->create();
 
     expect(DefaultOne::count())->toBe(1);
 });
 
-test('can refresh non default database connections', function () {
+test('can refresh non default database connections', function (): void {
     OtherOne::factory()->create();
 
     expect(OtherOne::count())->toBe(1);
 });
 
-test('can refresh multiple database connections', function () {
+test('can refresh multiple database connections', function (): void {
     DefaultOne::factory()->create();
     OtherOne::factory()->create();
 
@@ -37,7 +35,7 @@ test('can refresh multiple database connections', function () {
     expect(OtherOne::count())->toBe(1);
 });
 
-test('does not migrate again if migration checksums have not changed', function () {
+test('does not migrate again if migration checksums have not changed', function (): void {
     FastRefreshDatabaseState::$cachedChecksum = '123';
     FastRefreshDatabaseState::$currentChecksum = '123';
     RefreshDatabaseState::$migrated = false;
@@ -51,7 +49,7 @@ test('does not migrate again if migration checksums have not changed', function 
         /** @var array<string> */
         protected $connectionsToTransact = ['default'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
             $this->refreshTestDatabase();
@@ -64,7 +62,7 @@ test('does not migrate again if migration checksums have not changed', function 
 
         protected function storeMigrationChecksum(string $checksum) {}
 
-        protected function beginDatabaseTransaction() {}
+        protected function beginDatabaseTransaction(): void {}
     };
 
     $class->runIt();
@@ -74,7 +72,7 @@ test('does not migrate again if migration checksums have not changed', function 
     RefreshDatabaseState::$migrated = true;
 });
 
-test('migrates again if checksum mismatched', function () {
+test('migrates again if checksum mismatched', function (): void {
     FastRefreshDatabaseState::$cachedChecksum = '123';
     FastRefreshDatabaseState::$currentChecksum = '124';
     RefreshDatabaseState::$migrated = false;
@@ -88,7 +86,7 @@ test('migrates again if checksum mismatched', function () {
         /** @var array<string> */
         protected $connectionsToTransact = ['default'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
             $this->refreshTestDatabase();
@@ -101,7 +99,7 @@ test('migrates again if checksum mismatched', function () {
 
         protected function storeMigrationChecksum(string $checksum) {}
 
-        protected function beginDatabaseTransaction() {}
+        protected function beginDatabaseTransaction(): void {}
     };
 
     $class->runIt();
@@ -111,7 +109,7 @@ test('migrates again if checksum mismatched', function () {
     RefreshDatabaseState::$migrated = true;
 });
 
-test('can calculate checksum from migrations', function () {
+test('can calculate checksum from migrations', function (): void {
     $class = new class
     {
         use FastRefreshDatabases;
@@ -121,7 +119,7 @@ test('can calculate checksum from migrations', function () {
         /** @var array<string> */
         protected $connectionsToTransact = ['default'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
             self::$checksum = $this->calculateMigrationChecksum();
@@ -148,70 +146,92 @@ test('can calculate checksum from migrations', function () {
 
     expect($checksumNew)->not()->toBe($checksum);
 
-    usleep(1000000);
-
     File::put($fakeFilePath, 'something else');
+    touch($fakeFilePath, time() + 60);
 
     $class->runIt();
 
     expect($class::$checksum)->not()->toBe($checksumNew);
 
     File::delete($fakeFilePath);
-});
+})->group('need_review');
 
-test('can store migration checksum', function () {
-    $file = File::partialMock();
-
-    $path = '';
-    $content = '';
-
-    $file->shouldReceive('put')
-        ->with(Mockery::capture($path), Mockery::capture($content));
-
+test('can store migration checksum', function (): void {
     $class = new class
     {
         use FastRefreshDatabases;
 
-        public static $checksum = '';
-
-        public function runIt()
+        public function runIt(): void
         {
             $this->storeMigrationChecksum('123');
         }
     };
+    $checksumFile = storage_path('app/migration-checksum_laravel.txt');
 
     $class->runIt();
 
-    $databaseSlug = Str::slug(DB::connection()->getDatabaseName());
-    $expectedPath = storage_path("app/migration-checksum_{$databaseSlug}.txt");
+    $storedChecksum = File::get($checksumFile);
+    File::delete($checksumFile);
 
-    expect($path)->toBe($expectedPath)
-        ->and($content)->toBe('123');
-});
+    expect($storedChecksum)->toBe('123');
+})->group('need_review');
 
-test('can get cached migration checksum', function () {
-    $file = File::partialMock();
-
-    $file->shouldReceive('get')->andReturn('123');
-
+test('can get cached migration checksum', function (): void {
     $class = new class
     {
         use FastRefreshDatabases;
 
-        public static $checksum = '';
-
-        public function runIt()
+        public function runIt(): ?string
         {
-            self::$checksum = $this->getCachedMigrationChecksum();
+            $this->storeMigrationChecksum('123');
+
+            try {
+                return $this->getCachedMigrationChecksum();
+            } finally {
+                File::delete($this->getMigrationChecksumFile());
+            }
         }
     };
 
-    $class->runIt();
+    expect($class->runIt())->toBe('123');
+})->group('need_review');
 
-    expect($class::$checksum)->toBe('123');
-});
+test('has no cached migration checksum before one is stored', function (): void {
+    $class = new class
+    {
+        use FastRefreshDatabases;
 
-test('checksum includes all configured migration paths', function () {
+        public function runIt(): ?string
+        {
+            return $this->getCachedMigrationChecksum();
+        }
+    };
+
+    expect($class->runIt())->toBeNull();
+})->group('need_review');
+
+test('fails when the cached migration checksum cannot be read', function (): void {
+    $class = new class
+    {
+        use FastRefreshDatabases;
+
+        public function runIt(): ?string
+        {
+            $this->storeMigrationChecksum('123');
+            chmod($this->getMigrationChecksumFile(), 0o000);
+
+            try {
+                return $this->getCachedMigrationChecksum();
+            } finally {
+                File::delete($this->getMigrationChecksumFile());
+            }
+        }
+    };
+
+    expect($class->runIt(...))->toThrow(ErrorException::class, 'Permission denied');
+})->group('need_review');
+
+test('checksum includes all configured migration paths', function (): void {
     $otherPath = database_path('migrations/other');
 
     File::ensureDirectoryExists($otherPath);
@@ -225,7 +245,7 @@ test('checksum includes all configured migration paths', function () {
         /** @var array<string> */
         protected $connectionsToTransact = ['default', 'other'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
             self::$checksum = $this->calculateMigrationChecksum();
@@ -246,7 +266,7 @@ test('checksum includes all configured migration paths', function () {
     expect($checksumAfter)->not()->toBe($checksumBefore);
 });
 
-test('checksum includes schema sql files', function () {
+test('checksum includes schema sql files', function (): void {
     $schemaPath = database_path('schema');
 
     File::ensureDirectoryExists($schemaPath);
@@ -260,7 +280,7 @@ test('checksum includes schema sql files', function () {
         /** @var array<string> */
         protected $connectionsToTransact = ['default'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
             self::$checksum = $this->calculateMigrationChecksum();
@@ -281,7 +301,7 @@ test('checksum includes schema sql files', function () {
     expect($checksumAfter)->not()->toBe($checksumBefore);
 });
 
-test('migrates in memory connections when checksums match and database is in memory', function () {
+test('migrates in memory connections when checksums match and database is in memory', function (): void {
     FastRefreshDatabaseState::$cachedChecksum = '123';
     FastRefreshDatabaseState::$currentChecksum = '123';
     RefreshDatabaseState::$migrated = false;
@@ -296,7 +316,7 @@ test('migrates in memory connections when checksums match and database is in mem
 
         protected $connectionsToTransact = ['default'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->setMigrationPaths();
             $this->refreshTestDatabase();
@@ -319,7 +339,7 @@ test('migrates in memory connections when checksums match and database is in mem
 
         protected function storeMigrationChecksum(string $checksum) {}
 
-        protected function beginDatabaseTransaction() {}
+        protected function beginDatabaseTransaction(): void {}
     };
 
     $class->runIt();
@@ -330,26 +350,33 @@ test('migrates in memory connections when checksums match and database is in mem
     RefreshDatabaseState::$migrated = true;
 });
 
-test('checksum handles missing migration paths gracefully', function () {
+test('checksum handles missing migration paths gracefully', function (): void {
     $class = new class
     {
         use FastRefreshDatabases;
 
         public static $checksum = '';
 
-        protected $migrationPaths = [];
+        protected $connectionsToTransact = ['default', 'other'];
 
-        public function runIt()
+        public function runIt(): void
         {
-            $this->migrationPaths = [
-                'default' => database_path('migrations'),
-                'nonexistent' => database_path('migrations/nonexistent_connection'),
-            ];
+            $this->setMigrationPaths();
             self::$checksum = $this->calculateMigrationChecksum();
+        }
+
+        /**
+         * 'default' resolves to an existing directory, 'other' to one that does not exist.
+         *
+         * @return array<string, string>
+         */
+        protected function migrationPaths(): array
+        {
+            return ['other' => '/nonexistent/migrations/other'];
         }
     };
 
     $class->runIt();
 
     expect($class::$checksum)->not()->toBe('');
-});
+})->group('need_review');

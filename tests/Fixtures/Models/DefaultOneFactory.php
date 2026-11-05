@@ -6,14 +6,18 @@ namespace Mahbub\RefreshDatabases\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\Mahbub\RefreshDatabases\Tests\Fixtures\Models\DefaultOne>
+ */
 final class DefaultOneFactory extends Factory
 {
+    #[\Override]
     protected $model = DefaultOne::class;
 
     public function definition()
     {
         return [
-            'name' => $this->faker->name,
+            'name' => fake()->name,
         ];
     }
 }

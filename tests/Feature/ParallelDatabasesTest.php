@@ -7,14 +7,14 @@ use Illuminate\Support\Facades\ParallelTesting;
 use Illuminate\Testing\ParallelTesting as ParallelTestingManager;
 use Mahbub\RefreshDatabases\RefreshDatabases;
 
-test('configureParallelDatabase skips when connection already configured', function () {
+test('configureParallelDatabase skips when connection already configured', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['skipconn'];
 
-        public function runIt()
+        public function runIt(): void
         {
             self::$originalDatabaseNames['skipconn'] = 'skipdb';
             $this->configureParallelDatabase('skipconn', '42');
@@ -37,14 +37,14 @@ test('configureParallelDatabase skips when connection already configured', funct
     expect(config('database.connections.skipconn.database'))->toBe('skipdb_test_42');
 });
 
-test('configureParallelDatabase skips memory databases', function () {
+test('configureParallelDatabase skips memory databases', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['sqlite'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->configureParallelDatabase('sqlite', '1');
         }
@@ -65,21 +65,16 @@ test('configureParallelDatabase skips memory databases', function () {
     expect($class->getMap())->toBe([]);
 });
 
-test('configureParallelDatabase skips null databases', function () {
+test('configureParallelDatabase fails for a connection without a database name', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['nulldb'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->configureParallelDatabase('nulldb', '1');
-        }
-
-        public function getMap()
-        {
-            return self::$databaseNameMap;
         }
     };
 
@@ -88,17 +83,16 @@ test('configureParallelDatabase skips null databases', function () {
         'database' => null,
     ]]);
 
-    $class->runIt();
+    expect($class->runIt(...))
+        ->toThrow(InvalidArgumentException::class, 'Configuration value for key [database.connections.nulldb.database] must be a string, NULL given.');
+})->group('need_review');
 
-    expect($class->getMap())->toBe([]);
-});
-
-test('replaceParallelDatabaseNames replaces SQL Server style names', function () {
+test('replaceParallelDatabaseNames replaces SQL Server style names', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
-        public function runIt(string $sql)
+        public function runIt(string $sql): string
         {
             self::$databaseNameMap = [
                 'TCB' => 'TCB_test_1',
@@ -115,12 +109,12 @@ test('replaceParallelDatabaseNames replaces SQL Server style names', function ()
     expect($result)->toBe('SELECT * FROM TCB_test_1.dbo.Users; INSERT INTO OtherDB_test_1.dbo.Items VALUES (1);');
 });
 
-test('replaceParallelDatabaseNames replaces MySQL style names', function () {
+test('replaceParallelDatabaseNames replaces MySQL style names', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
-        public function runIt(string $sql)
+        public function runIt(string $sql): string
         {
             self::$databaseNameMap = [
                 'mydb' => 'mydb_test_1',
@@ -129,7 +123,7 @@ test('replaceParallelDatabaseNames replaces MySQL style names', function () {
             return $this->replaceParallelDatabaseNames($sql);
         }
 
-        public function reset()
+        public function reset(): void
         {
             self::$databaseNameMap = [];
         }
@@ -143,14 +137,45 @@ test('replaceParallelDatabaseNames replaces MySQL style names', function () {
     $class->reset();
 });
 
-test('ensureParallelDatabaseExists handles unsupported drivers', function () {
+test('replaceParallelDatabaseNames fails when the database names cannot be replaced', function (): void {
+    $class = new class
+    {
+        use RefreshDatabases;
+
+        public function runIt(string $sql): string
+        {
+            self::$databaseNameMap = ['Uncompiled' => 'Uncompiled_test_1'];
+
+            return $this->replaceParallelDatabaseNames($sql);
+        }
+
+        public function reset(): void
+        {
+            self::$databaseNameMap = [];
+        }
+    };
+    // PHP caches compiled patterns, so the name must be one no other test has compiled with the JIT on.
+    $jit = ini_set('pcre.jit', '0');
+    $backtrackLimit = ini_set('pcre.backtrack_limit', '1');
+
+    try {
+        expect(fn (): string => $class->runIt('SELECT * FROM Uncompiled.dbo.Users;'))
+            ->toThrow(RuntimeException::class, 'Could not replace the database name [Uncompiled] in the SQL file: Backtrack limit exhausted');
+    } finally {
+        ini_set('pcre.jit', (string) $jit);
+        ini_set('pcre.backtrack_limit', (string) $backtrackLimit);
+        $class->reset();
+    }
+})->group('need_review');
+
+test('ensureParallelDatabaseExists handles unsupported drivers', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['pgsqlconn'];
 
-        public function runIt(string $connection, string $database)
+        public function runIt(string $connection, string $database): void
         {
             $this->ensureParallelDatabaseExists($connection, $database);
         }
@@ -163,15 +188,15 @@ test('ensureParallelDatabaseExists handles unsupported drivers', function () {
 
     $class->runIt('pgsqlconn', 'testdb_test_1');
 
-    expect(true)->toBeTrue();
-});
+    expect(config('database.connections.pgsqlconn.database'))->toBe('testdb');
+})->group('need_review');
 
-test('ensureParallelDatabaseExists creates mysql database', function () {
+test('ensureParallelDatabaseExists creates mysql database', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
-        public function runIt(string $connection, string $database)
+        public function runIt(string $connection, string $database): void
         {
             $this->ensureParallelDatabaseExists($connection, $database);
         }
@@ -189,22 +214,22 @@ test('ensureParallelDatabaseExists creates mysql database', function () {
         [$testDb]
     );
 
-    expect($exists)->not->toBeEmpty();
+    expect($exists)->toEqual([(object) ['SCHEMA_NAME' => $testDb]]);
 
     DB::connection('default')->statement("DROP DATABASE IF EXISTS `{$testDb}`");
 
     config(['database.connections.default.database' => 'laravel']);
     DB::purge('default');
-});
+})->group('need_review');
 
-test('createMysqlDatabase creates database with correct charset', function () {
+test('createMysqlDatabase creates database with correct charset', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
         protected $connectionsToTransact = ['default'];
 
-        public function runIt(string $connection, string $database)
+        public function runIt(string $connection, string $database): void
         {
             $this->createMysqlDatabase($connection, $database);
         }
@@ -222,20 +247,20 @@ test('createMysqlDatabase creates database with correct charset', function () {
         [$testDb]
     );
 
-    expect($exists)->not->toBeEmpty();
+    expect($exists)->toEqual([(object) ['SCHEMA_NAME' => $testDb]]);
 
     DB::connection('default')->statement("DROP DATABASE IF EXISTS `{$testDb}`");
 
     config(['database.connections.default.database' => 'laravel']);
     DB::purge('default');
-});
+})->group('need_review');
 
-test('ensureParallelDatabaseExists creates sqlsrv database', function () {
+test('ensureParallelDatabaseExists creates sqlsrv database', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
-        public function runIt(string $connection, string $database)
+        public function runIt(string $connection, string $database): void
         {
             $this->ensureParallelDatabaseExists($connection, $database);
         }
@@ -253,31 +278,29 @@ test('ensureParallelDatabaseExists creates sqlsrv database', function () {
         [$testDb]
     );
 
-    expect($exists)->not->toBeNull();
+    expect($exists)->name->toBe($testDb);
 
     DB::connection('sqlsrv')->statement("DROP DATABASE [{$testDb}]");
 
     config(['database.connections.sqlsrv.database' => 'master']);
     DB::purge('sqlsrv');
-});
+})->group('need_review');
 
-test('createSqlServerDatabase skips creation when database exists', function () {
+test('createSqlServerDatabase skips creation when database exists', function (): void {
     $class = new class
     {
         use RefreshDatabases;
 
-        public function runIt(string $connection, string $database)
+        public function runIt(string $connection, string $database): void
         {
             $this->createSqlServerDatabase($connection, $database);
         }
     };
 
-    $class->runIt('sqlsrv', 'master');
+    expect(fn () => $class->runIt('sqlsrv', 'master'))->not->toThrow(Throwable::class);
+})->group('need_review');
 
-    expect(true)->toBeTrue();
-});
-
-test('configureParallelDatabases loops through connections when token exists', function () {
+test('configureParallelDatabases loops through connections when token exists', function (): void {
     $mock = Mockery::mock(ParallelTestingManager::class)->makePartial();
     $mock->shouldReceive('token')->andReturn('99');
     ParallelTesting::swap($mock);
@@ -288,7 +311,7 @@ test('configureParallelDatabases loops through connections when token exists', f
 
         protected $connectionsToTransact = ['parallelconn'];
 
-        public function runIt()
+        public function runIt(): void
         {
             $this->configureParallelDatabases();
         }

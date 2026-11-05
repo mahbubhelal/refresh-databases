@@ -4,13 +4,13 @@ A Laravel package that extends the `RefreshDatabase` trait to support multiple d
 
 ## Requirements
 
-- PHP 8.3+
-- Laravel 11.x or 12.x
+- PHP `^8.5`
+- Laravel `^13.35`
 
 ## Installation
 
 ```bash
-composer require mahbubhelal/refresh-databases --dev
+composer require --dev mahbubhelal/refresh-databases
 ```
 
 ## Usage
@@ -68,7 +68,7 @@ For the example above with `mysql` as the default connection:
 
 ### Custom Migration Paths
 
-Override the default migration paths using the `$migrationPaths` property:
+Override the default migration paths by overriding the `migrationPaths()` method:
 
 ```php
 <?php
@@ -84,13 +84,21 @@ abstract class TestCase extends BaseTestCase
 
     protected array $connectionsToTransact = ['mysql', 'reporting', 'analytics'];
 
-    protected array $migrationPaths = [
-        'reporting' => '/custom/path/to/reporting/migrations',
-        // 'mysql' will use database/migrations (default connection)
-        // 'analytics' will use database/migrations/analytics (convention)
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function migrationPaths(): array
+    {
+        return [
+            'reporting' => '/custom/path/to/reporting/migrations',
+            // 'mysql' will use database/migrations (default connection)
+            // 'analytics' will use database/migrations/analytics (convention)
+        ];
+    }
 }
 ```
+
+Upgrading from 1.x: `$migrationPaths` used to be a property. Move its array into this method; a leftover property is ignored.
 
 ### Lifecycle Hooks
 
@@ -130,14 +138,16 @@ abstract class TestCase extends BaseTestCase
 
 ### How It Works
 
-1. Calculates a SHA-256 checksum from all migration files (modification time + path) and the current git branch
+1. Calculates a SHA-256 checksum from all migration files and the `database/schema/*.sql` files (modification time + path) and the current git branch
 2. Compares against the cached checksum in `storage/app/migration-checksum_{database}.txt`
 3. Only runs migrations if the checksum differs
 4. Stores the new checksum after successful migration
 
 ### Caveats
 
-The checksum only covers migration files and the git branch. Changes to SQL files (`schema`, `views`, `seed`) are **not** detected. If you modify an SQL file without changing any migration, clear the checksum to force a re-run.
+The checksum covers the migration files, the SQL files in `database/schema/` (`schema`, `views`, `seed`) and the git branch. Seeders and anything else the migrations read are **not** covered; after changing them, clear the checksum to force a re-run.
+
+When git cannot read the branch (no `git` binary, not a repository, an untrusted directory), the checksum silently leaves the branch out.
 
 ### Clearing the Checksum
 
@@ -191,7 +201,7 @@ When a parallel test process starts, the package creates a new database if it do
 - **MySQL**: `CREATE DATABASE IF NOT EXISTS {database}_test_{token}`
 - **SQL Server**: `CREATE DATABASE [{database}_test_{token}]`
 
-For example, if your `reporting` connection has `database: 'reports_db'`, the parallel database would be `reports_db_test_1`.
+For example, if your `reporting` connection has `database: 'reports_db'`, the parallel database would be `reports_db_test_1`. Every connection refreshed in parallel therefore needs a `database` name; one without fails with a configuration error instead of sharing a database between processes.
 
 ### SQL Server Three-Part Naming in Parallel Tests
 
@@ -241,10 +251,22 @@ database/
         └── 2024_01_01_000000_create_metrics_table.php
 ```
 
+## Development
+
+The package ships with a Docker-based dev environment. Common commands:
+
+```bash
+./dc buildup              # build and start the containers
+./dc composer install     # install dependencies
+./ci                      # every check: rector, pint, phpstan, type and line coverage (both 100%)
+./ci all                  # apply rector and pint fixes, then run phpstan, type coverage and tests
+./ci pest --filter=Name   # run tests; also ./ci rector|pint|phpstan|types|coverage
+```
+
 ## Credits
 
 The fast refresh functionality is inspired by [PlannrCrm/laravel-fast-refresh-database](https://github.com/PlannrCrm/laravel-fast-refresh-database).
 
 ## License
 
-MIT
+The MIT License (MIT). See [LICENSE](LICENSE).

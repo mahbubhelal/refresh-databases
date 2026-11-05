@@ -2,37 +2,38 @@
 
 declare(strict_types=1);
 
-use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
+use Pest\Rector\Rules\ChainExpectCallsRector;
+use Pest\Rector\Set\PestSetList;
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\Node\RemoveNonExistingVarAnnotationRector;
 use Rector\Php74\Rector\Property\RestoreDefaultNullToNullableTypePropertyRector;
-use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
-use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
+use RectorLaravel\Rector\FuncCall\UnlinkFuncCallToFileFacadeDeleteRector;
 use RectorLaravel\Set\LaravelLevelSetList;
 use RectorLaravel\Set\LaravelSetList;
 
 return RectorConfig::configure()
     ->withPaths([
         __DIR__ . '/src',
+        __DIR__ . '/tests',
     ])
     ->withSkip([
-        DeclareStrictTypesRector::class,
-        PostIncDecToPreIncDecRector::class,
         RestoreDefaultNullToNullableTypePropertyRector::class,
         RemoveNonExistingVarAnnotationRector::class,
-        NullToStrictStringFuncCallArgRector::class,
+        ChainExpectCallsRector::class,
+        // The facade is mocked in this test, so its cleanup must bypass it.
+        UnlinkFuncCallToFileFacadeDeleteRector::class => [__DIR__ . '/tests/Feature/RemoveChecksumTest.php'],
     ])
     ->withSets([
-        LevelSetList::UP_TO_PHP_83,
+        LevelSetList::UP_TO_PHP_85,
         SetList::PRIVATIZATION,
         SetList::EARLY_RETURN,
         SetList::TYPE_DECLARATION,
         SetList::DEAD_CODE,
         SetList::CODE_QUALITY,
-        SetList::STRICT_BOOLEANS,
         SetList::RECTOR_PRESET,
         LaravelLevelSetList::UP_TO_LARAVEL_130,
         LaravelSetList::LARAVEL_CODE_QUALITY,
+        PestSetList::CODING_STYLE,
     ]);

@@ -9,21 +9,26 @@ use Orchestra\Testbench\TestCase as TestbenchTestCase;
 
 abstract class TestCase extends TestbenchTestCase
 {
-    protected $connectionsToTransact = ['default', 'other', 'sqlsrv'];
+    /** @var list<string> */
+    protected array $connectionsToTransact = ['default', 'other', 'sqlsrv'];
 
-    protected $migrationPaths = [
-        'sqlsrv' => __DIR__ . '/Fixtures/database/migrations/sqlsrv',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function migrationPaths(): array
+    {
+        return ['sqlsrv' => __DIR__ . '/Fixtures/database/migrations/sqlsrv'];
+    }
 
     #[\Override]
-    protected function getPackageProviders($app)
+    protected function getPackageProviders($app): array
     {
         return [
             RefreshDatabasesServiceProvider::class,
         ];
     }
 
-    protected function getEnvironmentSetUp($app)
+    protected function getEnvironmentSetUp($app): void
     {
         $mysqlOptions = [
             'url' => '',

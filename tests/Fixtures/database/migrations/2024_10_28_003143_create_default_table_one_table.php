@@ -10,15 +10,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection('default')->create('default_table_one', function (Blueprint $table) {
+        Schema::connection('default')->create('default_table_one', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->timestamps();
         });
-    }
-
-    public function down(): void
-    {
-        Schema::connection('default')->dropIfExists('default_table_one');
     }
 };

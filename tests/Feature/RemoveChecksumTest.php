@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\File;
 
-test('can remove checksum files from storage folder', function () {
-    $file = File::partialMock();
+use function Pest\Laravel\artisan;
 
-    File::put(storage_path('app/migration-checksum_laravel.txt'), 'something');
+test('removes the checksum files from storage and nothing else', function (): void {
+    $checksumFile = storage_path('app/migration-checksum_laravel.txt');
+    $unrelatedFile = storage_path('app/unrelated.txt');
+    File::put($checksumFile, 'something');
+    File::put($unrelatedFile, 'something');
 
-    $file->shouldReceive('delete')
-        ->once();
-
-    $this->artisan('refresh-databases:remove-checksum')
+    artisan('refresh-databases:remove-checksum')
         ->expectsOutput('Checksum file has been removed.')
         ->assertOk();
 
-    unlink(storage_path('app/migration-checksum_laravel.txt'));
-});
+    $unrelatedFileSurvived = File::exists($unrelatedFile);
+    File::delete($unrelatedFile);
 
-test('does not remove checksum files from storage folder if not present', function () {
-    $file = File::partialMock();
+    expect(File::exists($checksumFile))->toBeFalse()
+        ->and($unrelatedFileSurvived)->toBeTrue();
+})->group('need_review');
 
-    $file->shouldNotReceive('delete');
-
-    $this->artisan('refresh-databases:remove-checksum')
+test('fails when there is no checksum file to remove', function (): void {
+    artisan('refresh-databases:remove-checksum')
         ->expectsOutput('Checksum file not present.')
-        ->assertExitCode(1);
-});
+        ->assertFailed();
+})->group('need_review');
